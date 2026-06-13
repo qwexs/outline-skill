@@ -1,11 +1,11 @@
 ---
 name: outline
-description: Work with Outline Wiki (your-outline.example.com) - search, create, update documents and collections. Use when working with wiki documentation, knowledge base articles, or team documentation management.
+description: Work with Outline Wiki (your-outline.example.com) - search, read, create, update, list documents and collections, manage file attachments. Use when working with wiki documentation, knowledge base articles, or team documentation management.
 ---
 
 # Outline Wiki Skill
 
-Skill для работы с Outline Wiki (your-outline.example.com) — поиск, создание и управление документацией.
+Skill для работы с Outline Wiki (your-outline.example.com) — поиск, создание, чтение, обновление и управление документацией и вложениями.
 
 ## 🎯 Что умеет
 
@@ -13,6 +13,8 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 - **Чтение** — получение документов по ID
 - **Создание** — новых документов и коллекций
 - **Обновление** — редактирование с режимами replace/append/prepend
+- **Список** — документы коллекции или прямые дети документа (`list.js`)
+- **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
 - **Управление** — delete, archive, duplicate
 - **Структура** — просмотр иерархии коллекций
 - **Import/Export** — работа с markdown файлами
@@ -89,10 +91,16 @@ echo "\n\n## New Section\n\nMore content" | bun scripts/update.js --id <id> --mo
 bun scripts/update.js --id <id> --text "⚠️ Warning: ..." --mode prepend
 ```
 
-### Создание коллекции
+### Список документов
 ```bash
-bun scripts/create-collection.js --name "Design" --description "Дизайн и UI/UX"
-bun scripts/create-collection.js --name "Private" --private --json
+# Все документы в коллекции
+bun scripts/list.js --collection <id>
+
+# Прямые дети документа (sub-issues / sub-pages)
+bun scripts/list.js --parent <id>
+
+# JSON-вывод
+bun scripts/list.js --parent <id> --json
 ```
 
 ### Список коллекций
@@ -105,6 +113,33 @@ bun scripts/list-collections.js --json
 ```bash
 bun scripts/tree.js --collection <id>
 bun scripts/tree.js --collection <id> --json
+```
+
+### Вложения (attachments)
+```bash
+# Список вложений документа
+bun scripts/attachments.js --action list --document-id <id>
+
+# Глобальный пул вложений
+bun scripts/attachments.js --action list
+
+# Загрузить файл
+bun scripts/attachments.js --action create \
+  --file ./handoff.md \
+  --name handoff.md \
+  --content-type text/markdown
+
+# Получить URL для скачивания
+bun scripts/attachments.js --action redirect --attachment-id <id>
+
+# Удалить вложение
+bun scripts/attachments.js --action delete --attachment-id <id>
+```
+
+### Создание коллекции
+```bash
+bun scripts/create-collection.js --name "Design" --description "Дизайн и UI/UX"
+bun scripts/create-collection.js --name "Private" --private --json
 ```
 
 ### История документа (ревизии)
@@ -193,6 +228,30 @@ for doc_id in $(bun scripts/tree.js --collection <id> --json | jq -r '.[].id'); 
 done
 ```
 
+### 4. Получить sub-issues / дочерние страницы
+```bash
+# `tree.js` показывает только первый уровень вложенности. Для глубокого
+# обхода используй `list.js --parent=<id>` рекурсивно:
+PARENT_ID="<root-doc-id>"
+bun scripts/list.js --parent "$PARENT_ID" --json | jq -r '.[].id' | while read -r child; do
+  echo "Child: $child"
+  bun scripts/list.js --parent "$child" --json | jq -r '.[] | "  - \(.title)"'
+done
+```
+
+### 5. Прикрепить handoff markdown к issue
+```bash
+# Загрузить файл
+bun scripts/attachments.js --action create \
+  --file ./docs/agents/handoff/2026-06-XX.md \
+  --name "phase-handoff.md" \
+  --content-type text/markdown
+
+# Получить ID из вывода, затем:
+# 1. Скопировать redirect URL из ответа create
+# 2. Добавить ссылку в issue через update.js --mode append
+```
+
 ## 📚 Документация
 
 - **[references/api-reference.md](references/api-reference.md)** — Детали Outline API
@@ -216,30 +275,38 @@ bun scripts/test-connection.js
 **Структура skill:**
 ```
 skills/outline/
-├── SKILL.md              # Эта документация
-├── config.example.json   # Шаблон для config.json
-├── config.json           # Локальная конфигурация (в .gitignore)
-├── package.json          # Bun dependencies
+├── SKILL.md                 # Эта документация
+├── README.md                # GitHub-ориентированный обзор
+├── LICENSE                  # MIT
+├── config.example.json      # Шаблон для config.json
+├── config.json              # Локальная конфигурация (в .gitignore)
+├── package.json             # Bun dependencies
 ├── scripts/
-│   ├── search.js         # Поиск
-│   ├── read.js           # Чтение
-│   ├── create.js         # Создание документа
+│   ├── search.js            # Поиск
+│   ├── read.js              # Чтение
+│   ├── create.js            # Создание документа
 │   ├── create-collection.js # Создание коллекции
-│   ├── update.js         # Обновление
-│   ├── delete.js         # Удаление
-│   ├── archive.js        # Архивация
-│   ├── duplicate.js      # Дублирование
-│   ├── export.js         # Экспорт markdown
-│   ├── import.js         # Импорт markdown
-│   ├── revisions.js      # История документа (ревизии)
-│   ├── tree.js           # Дерево коллекции
+│   ├── update.js            # Обновление
+│   ├── delete.js            # Удаление
+│   ├── archive.js           # Архивация
+│   ├── duplicate.js         # Дублирование
+│   ├── export.js            # Экспорт markdown
+│   ├── import.js            # Импорт markdown
+│   ├── revisions.js         # История документа (ревизии)
+│   ├── tree.js              # Дерево коллекции (depth 1)
+│   ├── list.js              # Документы коллекции или дети parent
 │   ├── list-collections.js  # Список коллекций
+│   ├── attachments.js       # Вложения: list / create / delete / redirect
 │   ├── test-connection.js   # Проверка auth и baseUrl
 │   └── lib/
 │       └── outline-api.js   # Core API wrapper (читает OUTLINE_API_TOKEN)
 └── references/
-    ├── api-reference.md  # API детали
-    └── examples.md       # Workflow примеры
+    ├── api-reference.md     # API детали
+    └── examples.md          # Workflow примеры
 ```
 
 **API wrapper:** `scripts/lib/outline-api.js` — единая точка для всех запросов к Outline API.
+
+**Note про namespace:** в текущей версии Outline attachments живут под namespace `attachments.*` (не `documents.attachments.*`). `attachments.js` уже учитывает это.
+
+**Note про depth в `tree.js`:** `collections.documents` отдаёт только первый уровень вложенности. Для sub-pages используйте `list.js --parent=<id>` (как в сценарии 4).

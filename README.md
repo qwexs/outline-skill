@@ -8,7 +8,7 @@ A small set of standalone Node.js scripts that map one-to-one to Outline's API e
 
 - One script per endpoint — easy to read, easy to extend
 - `--json` output on every script for programmatic use
-- Bearer-token auth via `config.json` (or `OUTLINE_API_TOKEN` env var on the `feat/env-token` branch)
+- Bearer-token auth via `OUTLINE_API_TOKEN` env var (or `config.json` fallback)
 - Zero npm dependencies
 - ESM, runs on Node 18+ and Bun
 
@@ -25,7 +25,16 @@ No `bun install` / `npm install` step.
 
 ## Configuration
 
-The skill reads its config from `config.json` (gitignored):
+The skill reads its token from two places; the first hit wins.
+
+### 1. `OUTLINE_API_TOKEN` env var (recommended)
+
+```bash
+# ~/.zshenv, ~/.bashrc, etc.
+export OUTLINE_API_TOKEN="ol_api_..."
+```
+
+### 2. `config.json` (fallback)
 
 ```json
 {
@@ -34,9 +43,7 @@ The skill reads its config from `config.json` (gitignored):
 }
 ```
 
-`baseUrl` must point at the `/api` endpoint of your Outline instance. `apiToken` is the API token from **Settings → API Tokens** in the Outline UI.
-
-> **Prefer env vars?** The `feat/env-token` branch reads `OUTLINE_API_TOKEN` from the environment first and falls back to `config.apiToken`. Check it out with `git switch feat/env-token` until it lands on `main`.
+`config.json` is gitignored and never committed. `baseUrl` must point at the `/api` endpoint of your Outline instance. `apiToken` is the API token from **Settings → API Tokens** in the Outline UI.
 
 Verify the setup:
 
@@ -80,10 +87,12 @@ Every script supports `--json` for machine-readable output and `--help` for the 
 | `archive.js` | Archive / restore a document |
 | `duplicate.js` | Duplicate a document (`--recursive` for sub-tree) |
 | `tree.js` | Show hierarchical structure of a collection |
+| `list.js` | List documents in a collection, or children of a parent document |
 | `list-collections.js` | List all collections |
 | `export.js` | Export a document as markdown |
 | `import.js` | Import a markdown file as a new document |
 | `revisions.js` | List / inspect document revisions |
+| `attachments.js` | Manage file attachments (`list` / `create` / `delete` / `redirect`) |
 | `test-connection.js` | Verify auth and baseUrl |
 
 Every script is a thin wrapper around one Outline API endpoint — no client library to keep in sync.
