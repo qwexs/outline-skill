@@ -1,5 +1,13 @@
 {
   "name": "outline-skill",
   "type": "module",
-  "dependencies": {}
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qwexs/outline-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qwexs/outline-skill/issues"
+  },
+  "homepage": "https://github.com/qwexs/outline-skill#readme"
 }
