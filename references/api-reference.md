@@ -142,6 +142,7 @@ curl -X POST https://your-outline.example.com/api/documents.update \
 | `title` | string | Новый заголовок |
 | `text` | string | Новый контент |
 | `append` | boolean | Добавить text в конец (вместо замены) |
+| `parentDocumentId` | string \| null | Сменить родителя. Передай UUID родителя **или `null`**, чтобы вынести документ на верхний уровень коллекции |
 
 **Важно:** `append: true` — ключевой параметр для добавления контента без перезаписи.
 
@@ -180,6 +181,33 @@ curl -X POST https://your-outline.example.com/api/documents.unarchive \
   -H "Content-Type: application/json" \
   -d '{"id": "document-uuid"}'
 ```
+
+#### `documents.move`
+Перемещение документа в другую коллекцию и/или смена родителя внутри коллекции.
+
+```bash
+curl -X POST https://your-outline.example.com/api/documents.move \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "document-uuid",
+    "collectionId": "target-collection-uuid",
+    "parentDocumentId": "target-parent-uuid"
+  }'
+```
+
+**Параметры:**
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | string | UUID документа (обязательный) |
+| `collectionId` | string | ID целевой коллекции (обязательный, если переносим в другую коллекцию) |
+| `parentDocumentId` | string \| null | ID нового родителя внутри коллекции, или `null` чтобы поместить на верхний уровень |
+
+**⚠️ Подводный камень.** Outline API **молча игнорирует неизвестные поля** в POST-теле и возвращает `ok: true` вместе с текущим (не изменённым) состоянием документа. Имена параметров фиксированные: `parentDocumentId` (НЕ `parentDocument`, НЕ `parentId`). Чтобы убедиться, что move реально сработал, делай post-check через `documents.info` и сравнивай `parentDocumentId` / `collectionId` с ожидаемыми.
+
+**Когда что использовать:**
+- Меняешь только parent внутри одной коллекции → `documents.update` с `parentDocumentId` (дешевле, не требует `collectionId`).
+- Переносишь в другую коллекцию (и опционально ставишь parent) → `documents.move`.
 
 #### `documents.duplicate`
 Дублирование документа.

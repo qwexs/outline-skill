@@ -1,3 +1,4 @@
 {
-  "baseUrl": "https://your-outline.example.com/api"
+  "_comment": "⚠️ ЗАГЛУШКА. Замените baseUrl на реальный URL вашего Outline-инстанса (например, https://outline.example.com/api). НЕ публикуйте URL с этим placeholder-ом в чат/документы.",
+  "baseUrl": "https://REPLACE_WITH_YOUR_OUTLINE_DOMAIN/api"
 }

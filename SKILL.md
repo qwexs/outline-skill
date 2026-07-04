@@ -15,7 +15,7 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 - **Обновление** — редактирование с режимами replace/append/prepend
 - **Список** — документы коллекции или прямые дети документа (`list.js`)
 - **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
-- **Управление** — delete, archive, duplicate
+- **Управление** — delete, archive, duplicate, **move** (смена parent/коллекции с post-check)
 - **Структура** — просмотр иерархии коллекций
 - **Import/Export** — работа с markdown файлами
 
@@ -44,13 +44,15 @@ cp config.example.json config.json
 `config.json` (уже в `.gitignore`, **не коммитится**):
 ```json
 {
-  "baseUrl": "https://your-outline.example.com/api"
+  "baseUrl": "https://REPLACE_WITH_YOUR_OUTLINE_DOMAIN/api"
 }
 ```
 
 Шаблон для `config.json` лежит в `config.example.json` — копируйте его.
 
 Если токен не задан ни в env, ни в `config.json`, skill бросит понятную ошибку при первом запросе.
+
+> ⚠️ **ВАЖНО — ЗАГЛУШКА.** `your-outline.example.com` и `REPLACE_WITH_YOUR_OUTLINE_DOMAIN` — это **плейсхолдеры**, не реальный домен. Реальный URL — в `config.json` после настройки (например, `https://outline.<your-domain>/api`). `test-connection.js` теперь падает с ошибкой, если видит placeholder, — это guard против типичной ошибки «скопировал шаблон из SKILL.md, забыл подставить свой домен». Перед публикацией любого URL (`/doc/...`, `/collection/...`) в чат или документ — **снимать реальный домен через `bun scripts/test-connection.js`**, а не из этого файла.
 
 ## 🔧 Quick Commands
 
@@ -178,6 +180,26 @@ bun scripts/duplicate.js --id <id> --title "Copy of Doc"
 bun scripts/duplicate.js --id <id> --recursive --publish  # С child документами
 ```
 
+### Перемещение (смена parent и/или коллекции)
+```bash
+# Сменить только parent внутри коллекции (предпочтительный способ)
+bun scripts/move.js --id <id> --parent <parent-id>
+# Сменить parent + перенести в другую коллекцию
+bun scripts/move.js --id <id> --collection <new-coll-id> --parent <new-parent-id>
+# Вынести документ на верхний уровень коллекции
+bun scripts/move.js --id <id> --parent null
+
+# ⚠️ Outline API молча игнорирует неизвестные поля POST-тела (например,
+# опечатку `parentDocument` вместо `parentDocumentId`) и возвращает ok:true
+# без фактического изменения. Скрипт делает post-check через documents.info,
+# а с --expect-parent строго валидирует результат и падает с exit code 2,
+# если parentDocumentId на сервере не совпал с ожиданием.
+bun scripts/move.js --id <id> --parent <parent-id> --expect-parent <parent-id>
+```
+
+> Имя параметра — `parentDocumentId` (НЕ `parentDocument`, НЕ `parentId`).
+> Если нужно только сменить parent без смены коллекции — `documents.update` тоже принимает `parentDocumentId` (см. `references/api-reference.md`).
+
 ### Export/Import
 ```bash
 # Export
@@ -252,6 +274,19 @@ bun scripts/attachments.js --action create \
 # 2. Добавить ссылку в issue через update.js --mode append
 ```
 
+### 6. Переместить документ к новому родителю
+```bash
+# Проверить текущего родителя
+bun scripts/read.js --id <doc-id> --json | jq '.data.parentDocumentId'
+
+# Сменить parent (с post-check, чтобы поймать silent no-op от Outline API)
+bun scripts/move.js --id <doc-id> --parent <new-parent-id> --expect-parent <new-parent-id>
+
+# Если exit code 2 — Outline проигнорировал поле; проверь имя (`parentDocumentId`)
+# и не путаешь ли ты endpoint: для смены parent внутри коллекции годятся и
+# documents.update (с parentDocumentId), и documents.move.
+```
+
 ## 📚 Документация
 
 - **[references/api-reference.md](references/api-reference.md)** — Детали Outline API
@@ -269,6 +304,8 @@ echo "$result" | jq '.data[0].document.title'
 ```bash
 bun scripts/test-connection.js
 ```
+
+> ⚠️ **Перед публикацией URL в чат / документ / issue** — снимать реальный домен через `test-connection.js`. Скрипт вернёт origin вида `https://outline.<your-domain>` и подтвердит подключение. **Никогда** не публиковать URL из SKILL.md / config.example.json / README.md / references/*.md — там placeholder `your-outline.example.com` или `REPLACE_WITH_YOUR_OUTLINE_DOMAIN`.
 
 ## 🛠️ Разработка
 
@@ -290,6 +327,7 @@ skills/outline/
 │   ├── delete.js            # Удаление
 │   ├── archive.js           # Архивация
 │   ├── duplicate.js         # Дублирование
+│   ├── move.js              # Перемещение (parent / коллекция) + post-check
 │   ├── export.js            # Экспорт markdown
 │   ├── import.js            # Импорт markdown
 │   ├── revisions.js         # История документа (ревизии)
