@@ -1,24 +1,101 @@
 #!/usr/bin/env node
 import { makeRequest } from './lib/outline-api.js';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 
 const args = process.argv.slice(2);
-const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 < args.length ? args[i + 1] : null; };
+const get = (flag) => {
+  const i = args.indexOf(flag);
+  return i !== -1 && i + 1 < args.length ? args[i + 1] : null;
+};
 const has = (flag) => args.includes(flag);
 
-if (has('--help') || !get('--title')) {
-  console.log(`Usage: create.js --title <text> [--text <markdown>] [--collection <id>] [--parent <id>] [--publish] [--json]`);
-  console.log(`If --text is omitted, reads from stdin.`);
-  process.exit(get('--title') ? 0 : 1);
+// Strict flag validation: anything starting with "-" that is not in this set
+// is treated as a typo / unknown option and fails loudly. Catches accidental
+// flags like --file/--input/--path that the script does not implement.
+const VALID_FLAGS = [
+  '--help',
+  '--title', '--text', '--file',
+  '--collection', '--parent',
+  '--publish',
+  '--json',
+];
+
+if (has('--help')) {
+  console.log(`Usage: create.js --title <text> [content source] [options]`);
+  console.log(``);
+  console.log(`Content source (exactly one of):`);
+  console.log(`  --text <markdown>     Inline markdown body`);
+  console.log(`  --file <path>         Read markdown body from file`);
+  console.log(`  stdin                 Pipe markdown via stdin (e.g. cat doc.md | create.js ...)`);
+  console.log(``);
+  console.log(`Options:`);
+  console.log(`  --collection <id>     Target collection UUID`);
+  console.log(`  --parent <id>         Parent document UUID`);
+  console.log(`  --publish             Publish immediately (otherwise draft)`);
+  console.log(`  --json                Output raw API response as JSON`);
+  console.log(``);
+  console.log(`Source priority if multiple are provided: --file > --text > stdin.`);
+  console.log(`If only one source resolves to non-empty content, that source is used.`);
+  process.exit(0);
+}
+
+for (const arg of args) {
+  if (arg.startsWith('-') && !VALID_FLAGS.includes(arg)) {
+    console.error(`Error: unknown flag "${arg}".`);
+    console.error(`Allowed flags: ${VALID_FLAGS.join(', ')}`);
+    process.exit(1);
+  }
+}
+
+const title = get('--title');
+if (!title) {
+  console.error(`Error: --title is required.`);
+  console.error(`Run with --help for usage.`);
+  process.exit(1);
+}
+
+const filePath = get('--file');
+if (filePath && !existsSync(filePath)) {
+  console.error(`Error: --file path does not exist: ${filePath}`);
+  process.exit(1);
 }
 
 try {
-  let text = get('--text');
-  if (!text && !process.stdin.isTTY) {
-    text = readFileSync(0, 'utf-8');
+  // Resolve content. Priority: --file > --text > stdin.
+  // Each source contributes only if it actually carries content; this way
+  // a stray empty --text="" or empty stdin does not silently empty the doc.
+  let text = '';
+  let usedSource = null;
+
+  if (filePath) {
+    const fromFile = readFileSync(filePath, 'utf-8');
+    if (fromFile.length > 0) {
+      text = fromFile;
+      usedSource = `--file ${filePath}`;
+    }
   }
 
-  const body = { title: get('--title'), text: text || '' };
+  if (!text && get('--text')) {
+    text = get('--text');
+    usedSource = '--text';
+  }
+
+  if (!text && !process.stdin.isTTY) {
+    const fromStdin = readFileSync(0, 'utf-8');
+    if (fromStdin.length > 0) {
+      text = fromStdin;
+      usedSource = 'stdin';
+    }
+  }
+
+  if (!text) {
+    console.error(`Error: document body is empty.`);
+    console.error(`Provide exactly one of: --text <markdown>, --file <path>, or pipe via stdin.`);
+    console.error(`Run with --help for usage.`);
+    process.exit(1);
+  }
+
+  const body = { title, text };
   if (get('--collection')) body.collectionId = get('--collection');
   if (get('--parent')) body.parentDocumentId = get('--parent');
   if (has('--publish')) body.publish = true;
@@ -32,6 +109,7 @@ try {
   console.log(`ID: ${doc.id}`);
   console.log(`Title: ${doc.title}`);
   console.log(`Status: ${doc.publishedAt ? 'published' : 'draft'}`);
+  console.log(`Source: ${usedSource}`);
   console.log(`URL: ${doc.url || 'N/A'}`);
 } catch (e) {
   console.error(`Error: ${e.message}`);
