@@ -11,7 +11,7 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 
 - **Поиск** — full-text search по всей wiki с контекстными сниппетами
 - **Чтение** — получение документов по ID
-- **Создание** — новых документов и коллекций
+- **Создание** — новых документов и коллекций (`--file`, `--text` или stdin; строгая валидация флагов и пустого тела)
 - **Обновление** — редактирование с режимами replace/append/prepend
 - **Список** — документы коллекции или прямые дети документа (`list.js`)
 - **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
@@ -70,15 +70,33 @@ bun scripts/read.js --id <id> --json
 ```
 
 ### Создание документа
+
+**Контент можно передать ровно одним из способов** (приоритет `--file` > `--text` > stdin):
+
 ```bash
-# Интерактивно
+# Из файла (рекомендуемый способ для больших markdown)
+bun scripts/create.js --title "Import" --file ./document.md --collection <id> --publish
+
+# Из stdin (cat / heredoc / pipe)
+cat document.md | bun scripts/create.js --title "Import" --collection <id> --publish
 echo "# My Document\n\nContent here" | bun scripts/create.js --title "New Doc" --publish
 
-# Из файла
-cat document.md | bun scripts/create.js --title "Import" --collection <id> --publish
-
-# С аргументом
+# Инлайн-аргументом
 bun scripts/create.js --title "Quick Note" --text "# Note\n\nContent" --publish
+```
+
+**Строгие правила скрипта** (важно):
+
+- `--title` обязателен — без него `exit 1`.
+- Любой неизвестный флаг (`--input`, `--path`, опечатка) → `exit 1` с явным сообщением. Скрипт **не тихой** для незнакомых опций.
+- Если контент нигде не задан (`--file` / `--text` / stdin — всё пустое) → `exit 1` с подсказкой. Защита от «забыл передать тело» и silent empty-документов.
+- `--file <path>` проверяет существование файла до запроса к API (быстрый fail с понятным сообщением).
+- Приоритет при нескольких источниках: `--file > --text > stdin`. Пустой `--text=""` или пустой stdin **не считаются** источником, чтобы `--text` не съел `--file`.
+- `--collection <uuid>` и `--parent <uuid>` опциональны. `--publish` публикует; без него — draft.
+
+```bash
+# Полная справка
+bun scripts/create.js --help
 ```
 
 ### Обновление документа
