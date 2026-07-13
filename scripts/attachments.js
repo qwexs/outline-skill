@@ -85,6 +85,8 @@ try {
       console.log(JSON.stringify({ attachment, uploadResult }, null, 2));
       process.exit(0);
     }
+    const redirectPath = `/api/attachments.redirect?id=${attachment.id}`;
+    const markdown = `![${attachment.name || opts.name}](${redirectPath})`;
     console.log(`✅ Attachment uploaded\n`);
     console.log(`ID:   ${attachment.id}`);
     console.log(`Name: ${attachment.name}`);
@@ -92,6 +94,8 @@ try {
     console.log(`Size: ${attachment.size != null ? `${attachment.size} bytes` : 'N/A'}`);
     if (attachment.documentId) console.log(`Doc:  ${attachment.documentId}`);
     if (attachment.url) console.log(`URL:  ${attachment.url}`);
+    console.log(`Path: ${redirectPath}`);
+    console.log(`MD:   ${markdown}`);
   } else if (action === 'delete') {
     const id = get('--attachment-id');
     if (!id) { console.error('Error: --attachment-id is required for delete.'); process.exit(1); }
