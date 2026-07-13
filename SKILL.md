@@ -52,6 +52,26 @@ cp config.example.json config.json
 
 Если токен не задан ни в env, ни в `config.json`, skill бросит понятную ошибку при первом запросе.
 
+### Corporate proxy / `NO_PROXY`
+
+Если на машине заданы `HTTP_PROXY` / `HTTPS_PROXY` (корпоративный прокси), запросы к **локальному/внутреннему** Outline часто зависают или уходят мимо. Bun/Node `fetch` уважают эти переменные.
+
+**Рекомендуемый `NO_PROXY`** (shell-rc / session env) — подставь свой Outline host:
+
+```bash
+# bash / zsh
+export NO_PROXY="localhost,127.0.0.1,::1,outline.example.com,.example.com"
+export no_proxy="$NO_PROXY"
+```
+
+```powershell
+# PowerShell (session)
+$env:NO_PROXY = "localhost,127.0.0.1,::1,outline.example.com,.example.com"
+$env:no_proxy = $env:NO_PROXY
+```
+
+`scripts/lib/outline-api.js` **дополнительно** сам дописывает hostname из `config.baseUrl` (+ parent domain) в `NO_PROXY`/`no_proxy` при импорте — чтобы skill работал даже если shell-rc не обновлён. Явный `NO_PROXY` в окружении всё равно предпочтителен (PowerShell `Invoke-WebRequest` и другие клиенты skill не патчат).
+
 > ⚠️ **ВАЖНО — ЗАГЛУШКА.** `your-outline.example.com` и `REPLACE_WITH_YOUR_OUTLINE_DOMAIN` — это **плейсхолдеры**, не реальный домен. Реальный URL — в `config.json` после настройки (например, `https://outline.<your-domain>/api`). `test-connection.js` теперь падает с ошибкой, если видит placeholder, — это guard против типичной ошибки «скопировал шаблон из SKILL.md, забыл подставить свой домен». Перед публикацией любого URL (`/doc/...`, `/collection/...`) в чат или документ — **снимать реальный домен через `bun scripts/test-connection.js`**, а не из этого файла.
 
 ## 🔧 Quick Commands
@@ -136,6 +156,13 @@ bun scripts/tree.js --collection <id> --json
 ```
 
 ### Вложения (attachments)
+
+Outline использует **two-phase upload**:
+1. `attachments.create` с `name` / `contentType` / `size` / optional `documentId` (без base64) → `{ attachment, uploadUrl, form }`
+2. multipart POST файла на `uploadUrl` (часто relative `/api/files.create` или signed S3 URL) с полями `form` + `file`
+
+`attachments.js --action create` делает оба шага. В stdout печатает **ID**, **Path** (`/api/attachments.redirect?id=...`) и **MD** (`![name](/api/attachments.redirect?id=...)`) — вставляй MD в документ.
+
 ```bash
 # Список вложений документа
 bun scripts/attachments.js --action list --document-id <id>
@@ -143,11 +170,17 @@ bun scripts/attachments.js --action list --document-id <id>
 # Глобальный пул вложений
 bun scripts/attachments.js --action list
 
-# Загрузить файл
+# Загрузить файл (content-type угадывается из расширения: jpg/png/webp/gif/pdf/md/...)
+bun scripts/attachments.js --action create \
+  --file ./diagram.png \
+  --document-id <doc-id>
+
+# Явные name + content-type
 bun scripts/attachments.js --action create \
   --file ./handoff.md \
   --name handoff.md \
-  --content-type text/markdown
+  --content-type text/markdown \
+  --document-id <doc-id>
 
 # Получить URL для скачивания
 bun scripts/attachments.js --action redirect --attachment-id <id>
