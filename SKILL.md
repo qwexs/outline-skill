@@ -53,24 +53,6 @@ cp config.example.json config.json
 
 Если токен не задан ни в env, ни в `config.json`, skill бросит понятную ошибку при первом запросе.
 
-### Corporate proxy / `NO_PROXY`
-
-Если заданы `HTTP_PROXY` / `HTTPS_PROXY`, запросы к **внутреннему** Outline часто зависают. Bun/Node `fetch` уважают эти переменные.
-
-**Рекомендуемый `NO_PROXY`** (подставь свой Outline host):
-
-```bash
-export NO_PROXY="localhost,127.0.0.1,::1,outline.example.com,.example.com"
-export no_proxy="$NO_PROXY"
-```
-
-```powershell
-$env:NO_PROXY = "localhost,127.0.0.1,::1,outline.example.com,.example.com"
-$env:no_proxy = $env:NO_PROXY
-```
-
-`scripts/lib/outline-api.js` дополнительно дописывает hostname из `config.baseUrl` (+ parent domain) в `NO_PROXY`/`no_proxy` **для процесса skill**. Явный `NO_PROXY` в shell/service env всё равно предпочтителен (другие клиенты, например PowerShell `Invoke-WebRequest`, skill не патчит).
-
 > ⚠️ **ВАЖНО — ЗАГЛУШКА.** `your-outline.example.com` и `REPLACE_WITH_YOUR_OUTLINE_DOMAIN` — это **плейсхолдеры**, не реальный домен. Реальный URL — в `config.json` после настройки (например, `https://outline.<your-domain>/api`). `test-connection.js` теперь падает с ошибкой, если видит placeholder, — это guard против типичной ошибки «скопировал шаблон из SKILL.md, забыл подставить свой домен». Перед публикацией любого URL (`/doc/...`, `/collection/...`) в чат или документ — **снимать реальный домен через `bun scripts/test-connection.js`**, а не из этого файла.
 
 ## 🔧 Quick Commands

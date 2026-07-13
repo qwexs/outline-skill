@@ -24,48 +24,6 @@ const outlineOrigin = new URL(config.baseUrl).origin;
 
 export { config, baseOrigin, outlineOrigin, apiToken };
 
-/**
- * Ensure this Outline host bypasses corporate HTTP(S)_PROXY.
- * Bun/Node fetch honor HTTP_PROXY/HTTPS_PROXY; without NO_PROXY, requests to an
- * internal Outline often hang. Hosts are derived from config.baseUrl only.
- */
-function ensureNoProxyForOutline() {
-  const required = ['localhost', '127.0.0.1', '::1', '.internal'];
-  try {
-    const host = new URL(config.baseUrl).hostname;
-    if (host) {
-      required.push(host);
-      const labels = host.split('.').filter(Boolean);
-      if (labels.length >= 2) {
-        const parent = labels.slice(-2).join('.');
-        required.push(parent, `.${parent}`);
-      }
-      if (labels.length >= 3) {
-        required.push(`.${labels.slice(1).join('.')}`);
-      }
-    }
-  } catch {
-    // invalid baseUrl fails later on request
-  }
-
-  const current = process.env.NO_PROXY || process.env.no_proxy || '';
-  const parts = current.split(',').map((s) => s.trim()).filter(Boolean);
-  let changed = false;
-  for (const host of required) {
-    if (!parts.some((p) => p.toLowerCase() === host.toLowerCase())) {
-      parts.push(host);
-      changed = true;
-    }
-  }
-  if (changed || !process.env.NO_PROXY) {
-    const value = parts.join(',');
-    process.env.NO_PROXY = value;
-    process.env.no_proxy = value;
-  }
-}
-
-ensureNoProxyForOutline();
-
 /** Resolve relative Outline paths against the instance origin. */
 export function resolveOutlineUrl(urlOrPath) {
   if (!urlOrPath) throw new Error('resolveOutlineUrl: empty url');
