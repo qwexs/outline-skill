@@ -29,60 +29,6 @@ export const baseUrl = String(config.baseUrl).replace(/\/$/, '');
 export { apiToken };
 
 /**
- * Ensure this Outline host bypasses corporate HTTP(S)_PROXY.
- * Bun and Node fetch honor HTTP_PROXY/HTTPS_PROXY; without NO_PROXY, requests
- * to a private/internal Outline often hang or route incorrectly through the proxy.
- *
- * Merges into process.env.NO_PROXY / no_proxy for this process only.
- * Hosts are derived from config.baseUrl — no hard-coded private domains.
- */
-function ensureNoProxyForOutline() {
-  const required = ['localhost', '127.0.0.1', '::1', '.internal'];
-
-  try {
-    const host = new URL(config.baseUrl).hostname;
-    if (host) {
-      required.push(host);
-      const labels = host.split('.').filter(Boolean);
-      // parent domain forms: example.com and .example.com
-      if (labels.length >= 2) {
-        const parent = labels.slice(-2).join('.');
-        required.push(parent);
-        required.push(`.${parent}`);
-      }
-      // full parent for multi-label hosts: a.b.example.com → .b.example.com too
-      if (labels.length >= 3) {
-        required.push(`.${labels.slice(1).join('.')}`);
-      }
-    }
-  } catch {
-    // ignore invalid baseUrl here; request will fail later with a clearer error
-  }
-
-  const current = process.env.NO_PROXY || process.env.no_proxy || '';
-  const parts = current
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  let changed = false;
-  for (const host of required) {
-    if (!parts.some((p) => p.toLowerCase() === host.toLowerCase())) {
-      parts.push(host);
-      changed = true;
-    }
-  }
-
-  if (changed || !process.env.NO_PROXY) {
-    const value = parts.join(',');
-    process.env.NO_PROXY = value;
-    process.env.no_proxy = value;
-  }
-}
-
-ensureNoProxyForOutline();
-
-/**
  * Resolve relative Outline paths (e.g. /api/files.create) against the instance origin.
  * Absolute http(s) URLs (S3 signed URLs) are returned unchanged.
  */
