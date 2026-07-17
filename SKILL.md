@@ -14,8 +14,7 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 - **Создание** — новых документов и коллекций (`--file`, `--text` или stdin; строгая валидация флагов и пустого тела)
 - **Обновление** — редактирование с режимами replace/append/prepend
 - **Список** — документы коллекции или прямые дети документа (`list.js`)
-- **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`) — двухфазная загрузка (metadata + file upload)
-- **Прикрепление файлов** — `--attach` при создании (`create.js`) и редактировании (`update.js`) документов
+- **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
 - **Управление** — delete, archive, duplicate, **move** (смена parent/коллекции с post-check)
 - **Структура** — просмотр иерархии коллекций
 - **Import/Export** — работа с markdown файлами
@@ -84,16 +83,6 @@ echo "# My Document\n\nContent here" | bun scripts/create.js --title "New Doc" -
 
 # Инлайн-аргументом
 bun scripts/create.js --title "Quick Note" --text "# Note\n\nContent" --publish
-
-# С прикреплением файлов
-bun scripts/create.js --title "Report" --text "# Report\n\nSee attached PDF" \
-  --collection <id> --publish \
-  --attach ./report.pdf \
-  --attach ./data.xlsx
-
-# С именем для вложения
-bun scripts/create.js --title "Doc" --text "Content" \
-  --attach ./file.pdf --attach-name "Отчёт за июль.pdf"
 ```
 
 **Строгие правила скрипта** (важно):
@@ -120,15 +109,6 @@ echo "\n\n## New Section\n\nMore content" | bun scripts/update.js --id <id> --mo
 
 # Prepend mode (добавить в начало)
 bun scripts/update.js --id <id> --text "⚠️ Warning: ..." --mode prepend
-
-# Прикрепить файлы к существующему документу
-bun scripts/update.js --id <id> --mode append \
-  --text "## Updated section\n\nNew content" \
-  --attach ./report.pdf \
-  --attach ./data.xlsx
-
-# Только прикрепить файлы (без изменения текста)
-bun scripts/update.js --id <id> --attach ./report.pdf --attach-name "Отчёт.pdf"
 ```
 
 ### Список документов
@@ -156,6 +136,13 @@ bun scripts/tree.js --collection <id> --json
 ```
 
 ### Вложения (attachments)
+
+Outline использует **two-phase upload**:
+1. `attachments.create` с `name` / `contentType` / `size` / optional `documentId` (без base64) → `{ attachment, uploadUrl, form }`
+2. multipart POST файла на `uploadUrl` (часто relative `/api/files.create` или signed S3 URL) с полями `form` + `file`
+
+`attachments.js --action create` делает оба шага. В stdout печатает **ID**, **Path** (`/api/attachments.redirect?id=...`) и **MD** (`![name](/api/attachments.redirect?id=...)`) — вставляй MD в документ.
+
 ```bash
 # Список вложений документа
 bun scripts/attachments.js --action list --document-id <id>
@@ -163,17 +150,16 @@ bun scripts/attachments.js --action list --document-id <id>
 # Глобальный пул вложений
 bun scripts/attachments.js --action list
 
-# Загрузить файл (двухфазная загрузка: metadata + file upload)
+# Загрузить файл (content-type угадывается из расширения: jpg/png/webp/gif/pdf/md/...)
+bun scripts/attachments.js --action create \
+  --file ./diagram.png \
+  --document-id <doc-id>
+
+# Явные name + content-type
 bun scripts/attachments.js --action create \
   --file ./handoff.md \
   --name handoff.md \
   --content-type text/markdown \
-  --document-id <doc-id>
-
-# Загрузить PDF в документ
-bun scripts/attachments.js --action create \
-  --file ./report.pdf \
-  --content-type application/pdf \
   --document-id <doc-id>
 
 # Получить URL для скачивания
@@ -182,12 +168,6 @@ bun scripts/attachments.js --action redirect --attachment-id <id>
 # Удалить вложение
 bun scripts/attachments.js --action delete --attachment-id <id>
 ```
-
-> ⚠️ **Важно:** `attachments.create` использует двухфазную загрузку.
-> Шаг 1: `attachments.create` — создаёт метаданные, возвращает `uploadUrl` + `form`.
-> Шаг 2: `files.create` — POST multipart/form-data с файлом.
-> Скрипт `attachments.js` автоматически выполняет оба шага.
-> Функция `uploadAttachment()` в `lib/outline-api.js` — для программного использования.
 
 ### Создание коллекции
 ```bash
