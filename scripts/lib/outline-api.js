@@ -427,3 +427,163 @@ export function isOutlineHost(urlOrPath) {
 export async function uploadAttachment(args) {
   return getClient().uploadAttachment(args);
 }
+
+/**
+ * Build breadcrumb path for a document: Collection / Parent / ... / Title
+ * Walks parentDocumentId chain (max 20) and resolves collection name.
+ * Returns { path, parts, collectionId, collectionName, parentIds }.
+ */
+export async function getDocumentBreadcrumb(docOrId, opts = {}) {
+  const client = opts.instance ? getClient(opts.instance) : getClient();
+  const maxDepth = opts.maxDepth ?? 20;
+
+  let doc = docOrId;
+  if (typeof docOrId === 'string') {
+    const res = await client.makeRequest('documents.info', { id: docOrId });
+    doc = res.data;
+  }
+  if (!doc?.id) throw new Error('getDocumentBreadcrumb: document is required');
+
+  const titles = [];
+  const parentIds = [];
+  let cursor = doc;
+  let depth = 0;
+
+  // Walk parents first (excluding current), then reverse.
+  while (cursor?.parentDocumentId && depth < maxDepth) {
+    parentIds.push(cursor.parentDocumentId);
+    const parentRes = await client.makeRequest('documents.info', {
+      id: cursor.parentDocumentId,
+    });
+    cursor = parentRes.data;
+    if (!cursor) break;
+    titles.unshift(cursor.title || cursor.id);
+    depth += 1;
+  }
+
+  let collectionName = doc.collection?.name || null;
+  const collectionId = doc.collectionId || doc.collection?.id || null;
+  if (!collectionName && collectionId) {
+    try {
+      const colRes = await client.makeRequest('collections.info', { id: collectionId });
+      collectionName = colRes.data?.name || null;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const parts = [];
+  if (collectionName) parts.push(collectionName);
+  parts.push(...titles);
+  parts.push(doc.title || doc.id);
+
+  return {
+    path: parts.join(' / '),
+    parts,
+    collectionId,
+    collectionName,
+    parentIds,
+    documentId: doc.id,
+    title: doc.title || null,
+  };
+}
+
+/**
+ * Batch breadcrumbs for many docs. Dedupes parent/collection lookups in-process.
+ * docs: array of document objects (must have id; parentDocumentId/collectionId help).
+ */
+export async function getBreadcrumbsForDocuments(docs, opts = {}) {
+  const client = opts.instance ? getClient(opts.instance) : getClient();
+  const list = Array.isArray(docs) ? docs.filter(Boolean) : [];
+  const cache = new Map(); // docId -> { id, title, parentDocumentId, collectionId }
+  const colCache = new Map(); // collectionId -> name
+
+  async function loadDoc(id) {
+    if (!id) return null;
+    if (cache.has(id)) return cache.get(id);
+    try {
+      const res = await client.makeRequest('documents.info', { id });
+      const d = res.data;
+      const slim = {
+        id: d.id,
+        title: d.title || d.id,
+        parentDocumentId: d.parentDocumentId || null,
+        collectionId: d.collectionId || d.collection?.id || null,
+        collectionName: d.collection?.name || null,
+      };
+      cache.set(id, slim);
+      return slim;
+    } catch {
+      cache.set(id, null);
+      return null;
+    }
+  }
+
+  async function loadCollectionName(id) {
+    if (!id) return null;
+    if (colCache.has(id)) return colCache.get(id);
+    try {
+      const res = await client.makeRequest('collections.info', { id });
+      const name = res.data?.name || null;
+      colCache.set(id, name);
+      return name;
+    } catch {
+      colCache.set(id, null);
+      return null;
+    }
+  }
+
+  // Seed cache from provided docs
+  for (const d of list) {
+    if (!d?.id) continue;
+    cache.set(d.id, {
+      id: d.id,
+      title: d.title || d.id,
+      parentDocumentId: d.parentDocumentId || null,
+      collectionId: d.collectionId || d.collection?.id || null,
+      collectionName: d.collection?.name || null,
+    });
+  }
+
+  const out = new Map();
+  for (const d of list) {
+    if (!d?.id) continue;
+    const titles = [];
+    const parentIds = [];
+    let cursor = await loadDoc(d.id);
+    let depth = 0;
+    const selfTitle = cursor?.title || d.title || d.id;
+
+    while (cursor?.parentDocumentId && depth < 20) {
+      parentIds.push(cursor.parentDocumentId);
+      cursor = await loadDoc(cursor.parentDocumentId);
+      if (!cursor) break;
+      titles.unshift(cursor.title || cursor.id);
+      depth += 1;
+    }
+
+    const seed = cache.get(d.id);
+    let collectionName = seed?.collectionName || d.collection?.name || null;
+    const collectionId = seed?.collectionId || d.collectionId || d.collection?.id || null;
+    if (!collectionName && collectionId) {
+      collectionName = await loadCollectionName(collectionId);
+    }
+
+    const parts = [];
+    if (collectionName) parts.push(collectionName);
+    parts.push(...titles);
+    parts.push(selfTitle);
+
+    out.set(d.id, {
+      path: parts.join(' / '),
+      parts,
+      collectionId,
+      collectionName,
+      parentIds,
+      documentId: d.id,
+      title: selfTitle,
+    });
+  }
+
+  return out;
+}

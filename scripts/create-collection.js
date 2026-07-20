@@ -14,7 +14,9 @@ try {
   const body = { name: get('--name') };
   if (get('--description')) body.description = get('--description');
   if (get('--color')) body.color = get('--color');
-  if (has('--private')) body.permission = '';
+  // Outline 1.9+: permission must be read|read_write|admin or null (private).
+  // Empty string is rejected with validation_error.
+  if (has('--private')) body.permission = null;
 
   const res = await makeRequest('collections.create', body);
   const c = res.data;

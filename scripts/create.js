@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { makeRequest, uploadAttachment } from './lib/outline-api.js';
+import { makeRequest, uploadAttachment, getDocumentBreadcrumb } from './lib/outline-api.js';
 import { readFileSync, existsSync } from 'fs';
 
 const args = process.argv.slice(2);
@@ -9,7 +9,6 @@ const get = (flag) => {
 };
 const has = (flag) => args.includes(flag);
 
-// Collect all --attach values (can be specified multiple times)
 const getMulti = (flag) => {
   const result = [];
   for (let i = 0; i < args.length - 1; i++) {
@@ -18,14 +17,12 @@ const getMulti = (flag) => {
   return result;
 };
 
-// Strict flag validation: anything starting with "-" that is not in this set
-// is treated as a typo / unknown option and fails loudly. Catches accidental
-// flags like --input/--path that the script does not implement.
 const VALID_FLAGS = [
   '--help',
   '--instance', '-i',
   '--title', '--text', '--file',
   '--collection', '--parent',
+  '--template-id', '--templateId',
   '--publish',
   '--json',
   '--attach', '--attach-name',
@@ -34,10 +31,11 @@ const VALID_FLAGS = [
 if (has('--help')) {
   console.log(`Usage: create.js --title <text> [content source] [options]`);
   console.log(``);
-  console.log(`Content source (exactly one of):`);
+  console.log(`Content source (one of, optional if --template-id provides body):`);
   console.log(`  --text <markdown>     Inline markdown body`);
   console.log(`  --file <path>         Read markdown body from file`);
-  console.log(`  stdin                 Pipe markdown via stdin (e.g. cat doc.md | create.js ...)`);
+  console.log(`  stdin                 Pipe markdown via stdin`);
+  console.log(`  --template-id <uuid>  Prefill from template (body used unless --text/--file/stdin given)`);
   console.log(``);
   console.log(`Options:`);
   console.log(`  --collection <id>     Target collection UUID`);
@@ -47,8 +45,7 @@ if (has('--help')) {
   console.log(`  --attach <file>        Attach a file to the document (repeatable)`);
   console.log(`  --attach-name <name>   Display name for the last --attach file`);
   console.log(``);
-  console.log(`Source priority if multiple are provided: --file > --text > stdin.`);
-  console.log(`If only one source resolves to non-empty content, that source is used.`);
+  console.log(`Source priority if multiple are provided: --file > --text > stdin > template body.`);
   process.exit(0);
 }
 
@@ -61,8 +58,10 @@ for (const arg of args) {
 }
 
 const title = get('--title');
-if (!title) {
-  console.error(`Error: --title is required.`);
+const templateId = get('--template-id') || get('--templateId');
+
+if (!title && !templateId) {
+  console.error(`Error: --title is required (or pass --template-id and let template supply the title).`);
   console.error(`Run with --help for usage.`);
   process.exit(1);
 }
@@ -74,9 +73,6 @@ if (filePath && !existsSync(filePath)) {
 }
 
 try {
-  // Resolve content. Priority: --file > --text > stdin.
-  // Each source contributes only if it actually carries content; this way
-  // a stray empty --text="" or empty stdin does not silently empty the doc.
   let text = '';
   let usedSource = null;
 
@@ -101,36 +97,42 @@ try {
     }
   }
 
-  if (!text) {
+  // Template without override body is allowed — Outline fills from template.
+  if (!text && !templateId) {
     console.error(`Error: document body is empty.`);
-    console.error(`Provide exactly one of: --text <markdown>, --file <path>, or pipe via stdin.`);
+    console.error(`Provide one of: --text, --file, stdin, or --template-id.`);
     console.error(`Run with --help for usage.`);
     process.exit(1);
   }
 
-  const body = { title, text };
+  if (!text && templateId) {
+    usedSource = `--template-id ${templateId}`;
+  }
+
+  const body = {};
+  if (title) body.title = title;
+  if (text) body.text = text;
   if (get('--collection')) body.collectionId = get('--collection');
   if (get('--parent')) body.parentDocumentId = get('--parent');
+  if (templateId) body.templateId = templateId;
   if (has('--publish')) body.publish = true;
 
   const res = await makeRequest('documents.create', body);
   const doc = res.data;
 
-  // Process attachments if any
   const attachFiles = getMulti('--attach');
   const attachName = get('--attach-name');
   const attachedLinks = [];
 
   if (attachFiles.length > 0) {
     for (let i = 0; i < attachFiles.length; i++) {
-      const filePath = attachFiles[i];
-      if (!existsSync(filePath)) {
-        console.error(`Warning: file not found, skipping: ${filePath}`);
+      const fp = attachFiles[i];
+      if (!existsSync(fp)) {
+        console.error(`Warning: file not found, skipping: ${fp}`);
         continue;
       }
 
-      // Determine content type from extension
-      const ext = filePath.toLowerCase().split('.').pop();
+      const ext = fp.toLowerCase().split('.').pop();
       const mimeMap = {
         pdf: 'application/pdf',
         md: 'text/markdown',
@@ -149,16 +151,15 @@ try {
       };
       const contentType = mimeMap[ext] || 'application/octet-stream';
 
-      // Use --attach-name for the last file if provided
       let name;
       if (i === attachFiles.length - 1 && attachName) {
         name = attachName;
       } else {
-        name = filePath.split('/').pop();
+        name = fp.split(/[/\\]/).pop();
       }
 
       const { attachment } = await uploadAttachment({
-        filePath,
+        filePath: fp,
         name,
         contentType,
         documentId: doc.id,
@@ -168,24 +169,36 @@ try {
       attachedLinks.push(link);
     }
 
-    // Append attachment links to the document
     if (attachedLinks.length > 0) {
       const attachText = '\n\n---\n\n**Вложения:**\n' + attachedLinks.map(l => `- ${l}`).join('\n');
       await makeRequest('documents.update', {
         id: doc.id,
         text: attachText,
-        append: true,
+        editMode: 'append',
+        done: true,
       });
     }
   }
 
-  if (has('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(0); }
+  let breadcrumb = null;
+  try {
+    breadcrumb = await getDocumentBreadcrumb(doc);
+  } catch {
+    /* non-fatal */
+  }
+
+  if (has('--json')) {
+    console.log(JSON.stringify({ ...res, breadcrumb }, null, 2));
+    process.exit(0);
+  }
 
   console.log(`✅ Document created\n`);
   console.log(`ID: ${doc.id}`);
   console.log(`Title: ${doc.title}`);
   console.log(`Status: ${doc.publishedAt ? 'published' : 'draft'}`);
   console.log(`Source: ${usedSource}`);
+  if (templateId) console.log(`Template: ${templateId}`);
+  if (breadcrumb?.path) console.log(`Path: ${breadcrumb.path}`);
   console.log(`URL: ${doc.url || 'N/A'}`);
   if (attachedLinks.length > 0) {
     console.log(`Attachments: ${attachedLinks.length} file(s) attached`);

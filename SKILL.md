@@ -9,10 +9,12 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 
 ## 🎯 Что умеет
 
-- **Поиск** — full-text search по всей wiki с контекстными сниппетами
-- **Чтение** — получение документов по ID
-- **Создание** — новых документов и коллекций (`--file`, `--text` или stdin; строгая валидация флагов и пустого тела)
-- **Обновление** — редактирование с режимами replace/append/prepend
+- **Поиск** — full-text search по всей wiki с контекстными сниппетами и breadcrumbs
+- **Чтение** — получение документов по ID + path (`Collection / Parent / Doc`)
+- **Создание** — новых документов и коллекций (`--file`, `--text`, stdin или `--template-id`)
+- **Обновление** — replace/append/prepend/**patch** (`editMode` + `findText`, как в official MCP)
+- **Шаблоны** — `templates.js` list/info + create из template
+- **Коллекции** — create + **update** (`update-collection.js`: name/description/color/icon/private/public)
 - **Список** — документы коллекции или прямые дети документа (`list.js`)
 - **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
 - **Управление** — delete, archive, duplicate, **move** (смена parent/коллекции с post-check)
@@ -93,6 +95,7 @@ bun scripts/search.js --query "bug" --limit 10 --json
 ```bash
 bun scripts/read.js --id <document-id>
 bun scripts/read.js --id <id> --json
+# Path: Collection / Parent / Doc (отключить: --no-breadcrumb)
 ```
 
 ### Создание документа
@@ -109,11 +112,14 @@ echo "# My Document\n\nContent here" | bun scripts/create.js --title "New Doc" -
 
 # Инлайн-аргументом
 bun scripts/create.js --title "Quick Note" --text "# Note\n\nContent" --publish
+
+# Из шаблона (body берётся из template, если не передан --text/--file/stdin)
+bun scripts/create.js --title "From template" --template-id <uuid> --collection <id> --publish
 ```
 
 **Строгие правила скрипта** (важно):
 
-- `--title` обязателен — без него `exit 1`.
+- `--title` обязателен (или достаточно `--template-id`, если title возьмёт template) — иначе `exit 1`.
 - Любой неизвестный флаг (`--input`, `--path`, опечатка) → `exit 1` с явным сообщением. Скрипт **не тихой** для незнакомых опций.
 - Если контент нигде не задан (`--file` / `--text` / stdin — всё пустое) → `exit 1` с подсказкой. Защита от «забыл передать тело» и silent empty-документов.
 - `--file <path>` проверяет существование файла до запроса к API (быстрый fail с понятным сообщением).
@@ -127,14 +133,27 @@ bun scripts/create.js --help
 
 ### Обновление документа
 ```bash
-# Replace mode (по умолчанию)
+# Replace mode (по умолчанию) — перезаписывает всё тело
 bun scripts/update.js --id <id> --text "New content"
 
-# Append mode (добавить в конец)
+# Append / prepend
 echo "\n\n## New Section\n\nMore content" | bun scripts/update.js --id <id> --mode append
-
-# Prepend mode (добавить в начало)
 bun scripts/update.js --id <id> --text "⚠️ Warning: ..." --mode prepend
+
+# Patch mode (рекомендуется для точечных правок) — как official MCP
+# --find = точная markdown-подстрока из текущего дока; --text = замена
+# Сохраняет rich formatting вне затронутого фрагмента
+bun scripts/update.js --id <id> --mode patch \
+  --find "## Old heading\n\nOld paragraph" \
+  --text "## New heading\n\nUpdated paragraph"
+```
+
+### Шаблоны (templates)
+```bash
+bun scripts/templates.js
+bun scripts/templates.js --collection <id>
+bun scripts/templates.js --id <template-uuid>
+bun scripts/templates.js --json
 ```
 
 ### Список документов
@@ -195,10 +214,16 @@ bun scripts/attachments.js --action redirect --attachment-id <id>
 bun scripts/attachments.js --action delete --attachment-id <id>
 ```
 
-### Создание коллекции
+### Создание / обновление коллекции
 ```bash
 bun scripts/create-collection.js --name "Design" --description "Дизайн и UI/UX"
 bun scripts/create-collection.js --name "Private" --private --json
+
+# Update existing collection
+bun scripts/update-collection.js --id <uuid> --name "New name"
+bun scripts/update-collection.js --id <uuid> --description "..." --color "#FF5C80"
+bun scripts/update-collection.js --id <uuid> --private
+bun scripts/update-collection.js --id <uuid> --public
 ```
 
 ### История документа (ревизии)

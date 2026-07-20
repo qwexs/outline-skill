@@ -113,10 +113,11 @@ curl -X POST https://your-outline.example.com/api/documents.create \
 **Параметры:**
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `title` | string | Заголовок (обязательный) |
+| `title` | string | Заголовок (обязательный, если нет templateId) |
 | `text` | string | Markdown контент |
-| `collectionId` | string | ID коллекции (обязательный) |
+| `collectionId` | string | ID коллекции |
 | `parentDocumentId` | string | ID родительского документа |
+| `templateId` | string | UUID шаблона для prefill (`templates.list`) |
 | `publish` | boolean | Опубликовать сразу |
 | `template` | boolean | Создать как шаблон |
 
@@ -131,7 +132,21 @@ curl -X POST https://your-outline.example.com/api/documents.update \
     "id": "document-uuid",
     "title": "Updated Title",
     "text": "New content",
-    "append": true
+    "editMode": "append"
+  }'
+```
+
+**Patch (surgical edit, preferred for agents):**
+```bash
+curl -X POST https://your-outline.example.com/api/documents.update \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "document-uuid",
+    "editMode": "patch",
+    "findText": "## Old section\n\nparagraph",
+    "text": "## New section\n\nupdated paragraph",
+    "done": true
   }'
 ```
 
@@ -140,11 +155,47 @@ curl -X POST https://your-outline.example.com/api/documents.update \
 |------|-----|----------|
 | `id` | string | UUID документа (обязательный) |
 | `title` | string | Новый заголовок |
-| `text` | string | Новый контент |
-| `append` | boolean | Добавить text в конец (вместо замены) |
-| `parentDocumentId` | string \| null | Сменить родителя. Передай UUID родителя **или `null`**, чтобы вынести документ на верхний уровень коллекции |
+| `text` | string | Новый контент / replacement для patch |
+| `editMode` | string | `replace` \| `append` \| `prepend` \| `patch` |
+| `findText` | string | Точная markdown-подстрока для `editMode=patch` (обязательна) |
+| `append` | boolean | **Deprecated** — используй `editMode: "append"` |
+| `parentDocumentId` | string \| null | Сменить родителя. UUID или `null` (корень коллекции) |
+| `done` | boolean | Завершить editing session |
 
-**Важно:** `append: true` — ключевой параметр для добавления контента без перезаписи.
+**Важно:** для точечных правок агентом предпочитай `editMode: "patch"` + `findText` — сохраняет rich formatting вне матча. `append: true` ещё работает (трансформируется в `editMode=append`), но deprecated.
+
+#### `collections.update`
+
+```bash
+curl -X POST https://your-outline.example.com/api/collections.update \
+  -H "Authorization: Bearer ***" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "collection-uuid",
+    "name": "New name",
+    "description": "Updated description",
+    "color": "#FF5C80",
+    "permission": "read"
+  }'
+```
+
+**Параметры:** `id` (required), `name`, `description`, `color`, `icon`, `permission` (`read` / empty for private).
+
+CLI: `bun scripts/update-collection.js --id <uuid> --name "..."`
+
+#### `templates.list` / `templates.info`
+
+```bash
+curl -X POST https://your-outline.example.com/api/templates.list \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 25}'
+
+curl -X POST https://your-outline.example.com/api/templates.info \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "template-uuid"}'
+```
 
 #### `documents.delete`
 Удаление документа.

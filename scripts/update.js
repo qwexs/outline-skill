@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-import { makeRequest, uploadAttachment } from './lib/outline-api.js';
+import { makeRequest, uploadAttachment, getDocumentBreadcrumb } from './lib/outline-api.js';
 import { readFileSync, existsSync } from 'fs';
 
 const args = process.argv.slice(2);
 const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 < args.length ? args[i + 1] : null; };
 const has = (flag) => args.includes(flag);
 
-// Collect all --attach values (can be specified multiple times)
 const getMulti = (flag) => {
   const result = [];
   for (let i = 0; i < args.length - 1; i++) {
@@ -15,46 +14,102 @@ const getMulti = (flag) => {
   return result;
 };
 
+const VALID_MODES = ['replace', 'append', 'prepend', 'patch'];
+
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--mode <replace|append|prepend>] [--json] [--attach <file> [--attach <file> ...]] [--attach-name <name>]`);
+  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--json] [--attach <file> ...] [--attach-name <name>]`);
   console.log(`If --text is omitted, reads from stdin.`);
-  console.log(`\n--attach <file>     Attach a file to the document. Can be repeated for multiple files.`);
+  console.log(``);
+  console.log(`Modes:`);
+  console.log(`  replace   Replace entire document body (default)`);
+  console.log(`  append    Append text to end (uses editMode=append)`);
+  console.log(`  prepend   Prepend text to beginning (uses editMode=prepend)`);
+  console.log(`  patch     Surgical replace: find exact --find markdown, replace with --text`);
+  console.log(`            Preserves rich formatting outside the matched region (MCP-style).`);
+  console.log(``);
+  console.log(`--find <md>         Required for --mode patch. Exact markdown substring from the doc.`);
+  console.log(`--attach <file>     Attach a file to the document. Can be repeated.`);
   console.log(`--attach-name <n>   Display name for the last --attach file (optional).`);
   process.exit(get('--id') ? 0 : 1);
 }
 
+function buildUpdateBody({ id, title, text, mode, findText }) {
+  const body = { id, done: true };
+  if (title) body.title = title;
+
+  if (text != null && text !== undefined) {
+    if (mode === 'append') {
+      body.text = text;
+      body.editMode = 'append';
+    } else if (mode === 'prepend') {
+      body.text = text;
+      body.editMode = 'prepend';
+    } else if (mode === 'patch') {
+      body.text = text;
+      body.editMode = 'patch';
+      body.findText = findText;
+    } else {
+      // replace
+      body.text = text;
+      body.editMode = 'replace';
+    }
+  }
+
+  return body;
+}
+
 try {
   let text = get('--text');
-  if (!text && !process.stdin.isTTY) {
+  if (text == null && !process.stdin.isTTY) {
     text = readFileSync(0, 'utf-8');
   }
 
   const mode = get('--mode') || 'replace';
+  if (!VALID_MODES.includes(mode)) {
+    console.error(`Error: invalid --mode "${mode}". Allowed: ${VALID_MODES.join(', ')}`);
+    process.exit(1);
+  }
+
+  const findText = get('--find');
+  if (mode === 'patch') {
+    if (!findText) {
+      console.error(`Error: --find is required when --mode patch.`);
+      console.error(`Copy the exact markdown substring from the document to replace.`);
+      process.exit(1);
+    }
+    if (text == null) {
+      console.error(`Error: --text (or stdin) is required when --mode patch.`);
+      process.exit(1);
+    }
+  }
+
   const attachFiles = getMulti('--attach');
   const attachName = get('--attach-name');
+  const id = get('--id');
 
-  // If there are attachments, we need to handle them
+  // If there are attachments, update text first (if any), then attach.
   if (attachFiles.length > 0) {
-    // First, update the document text if provided
-    if (text) {
-      const body = { id: get('--id'), done: true };
-      if (get('--title')) body.title = get('--title');
-      if (mode === 'append') {
-        body.text = text;
-        body.append = true;
-      } else if (mode === 'prepend') {
-        const current = await makeRequest('documents.info', { id: get('--id') });
-        body.text = text + '\n' + (current.data.text || '');
-      } else {
-        body.text = text;
+    if (text != null || get('--title')) {
+      if (text != null || mode === 'patch') {
+        const body = buildUpdateBody({
+          id,
+          title: get('--title'),
+          text: text != null ? text : undefined,
+          mode,
+          findText,
+        });
+        // Title-only without text
+        if (text == null) {
+          delete body.text;
+          delete body.editMode;
+          delete body.findText;
+        }
+        await makeRequest('documents.update', body);
+      } else if (get('--title')) {
+        await makeRequest('documents.update', { id, title: get('--title'), done: true });
       }
-      await makeRequest('documents.update', body);
-    } else if (get('--title')) {
-      // Just update title
-      await makeRequest('documents.update', { id: get('--id'), title: get('--title'), done: true });
     }
 
-    // Upload and attach files
     const attachedLinks = [];
     for (let i = 0; i < attachFiles.length; i++) {
       const filePath = attachFiles[i];
@@ -86,70 +141,97 @@ try {
       if (i === attachFiles.length - 1 && attachName) {
         name = attachName;
       } else {
-        name = filePath.split('/').pop();
+        name = filePath.split(/[/\\]/).pop();
       }
 
       const { attachment } = await uploadAttachment({
         filePath,
         name,
         contentType,
-        documentId: get('--id'),
+        documentId: id,
       });
 
       const link = `[${attachment.name}](/api/attachments.redirect?id=${attachment.id})`;
       attachedLinks.push(link);
     }
 
-    // Append attachment links to the document
     if (attachedLinks.length > 0) {
       const attachText = '\n\n---\n\n**Вложения:**\n' + attachedLinks.map(l => `- ${l}`).join('\n');
       await makeRequest('documents.update', {
-        id: get('--id'),
+        id,
         text: attachText,
-        append: true,
+        editMode: 'append',
+        done: true,
       });
     }
 
-    // Fetch updated document for display
-    const updated = await makeRequest('documents.info', { id: get('--id') });
+    const updated = await makeRequest('documents.info', { id });
     const doc = updated.data;
+    let breadcrumb = null;
+    try {
+      breadcrumb = await getDocumentBreadcrumb(doc);
+    } catch {
+      /* non-fatal */
+    }
 
-    if (has('--json')) { console.log(JSON.stringify(updated, null, 2)); process.exit(0); }
+    if (has('--json')) {
+      console.log(JSON.stringify({ ...updated, breadcrumb }, null, 2));
+      process.exit(0);
+    }
 
     console.log(`✅ Document updated\n`);
     console.log(`ID: ${doc.id}`);
     console.log(`Title: ${doc.title}`);
     console.log(`Mode: ${mode}`);
+    if (breadcrumb?.path) console.log(`Path: ${breadcrumb.path}`);
     console.log(`URL: ${doc.url || 'N/A'}`);
     if (attachedLinks.length > 0) {
       console.log(`Attachments: ${attachedLinks.length} file(s) attached`);
       attachedLinks.forEach(l => console.log(`  - ${l}`));
     }
   } else {
-    // No attachments — original flow
-    const body = { id: get('--id'), done: true };
-    if (get('--title')) body.title = get('--title');
-    if (text) {
-      if (mode === 'append') {
-        body.text = text;
-        body.append = true;
-      } else if (mode === 'prepend') {
-        const current = await makeRequest('documents.info', { id: get('--id') });
-        body.text = text + '\n' + (current.data.text || '');
-      } else {
-        body.text = text;
-      }
+    // No attachments — main flow
+    if (text == null && !get('--title')) {
+      console.error(`Error: nothing to update. Provide --text/--title or stdin.`);
+      process.exit(1);
+    }
+
+    const body = buildUpdateBody({
+      id,
+      title: get('--title'),
+      text: text != null ? text : undefined,
+      mode,
+      findText,
+    });
+    if (text == null) {
+      delete body.text;
+      delete body.editMode;
+      delete body.findText;
     }
 
     const res = await makeRequest('documents.update', body);
     const doc = res.data;
+    let breadcrumb = null;
+    try {
+      breadcrumb = await getDocumentBreadcrumb(doc);
+    } catch {
+      /* non-fatal */
+    }
 
-    if (has('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(0); }
+    if (has('--json')) {
+      console.log(JSON.stringify({ ...res, breadcrumb }, null, 2));
+      process.exit(0);
+    }
 
     console.log(`✅ Document updated\n`);
     console.log(`ID: ${doc.id}`);
     console.log(`Title: ${doc.title}`);
     console.log(`Mode: ${mode}`);
+    if (mode === 'patch' && findText) {
+      const preview = findText.length > 60 ? findText.slice(0, 60) + '…' : findText;
+      console.log(`Find: ${preview.replace(/\n/g, '\\n')}`);
+    }
+    if (breadcrumb?.path) console.log(`Path: ${breadcrumb.path}`);
     console.log(`URL: ${doc.url || 'N/A'}`);
   }
 } catch (e) {
