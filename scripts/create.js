@@ -23,6 +23,7 @@ const getMulti = (flag) => {
 // flags like --input/--path that the script does not implement.
 const VALID_FLAGS = [
   '--help',
+  '--instance', '-i',
   '--title', '--text', '--file',
   '--collection', '--parent',
   '--publish',

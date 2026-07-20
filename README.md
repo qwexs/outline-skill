@@ -8,7 +8,7 @@ A small set of standalone Node.js scripts that map one-to-one to Outline's API e
 
 - One script per endpoint — easy to read, easy to extend
 - `--json` output on every script for programmatic use
-- Bearer-token auth via `OUTLINE_API_TOKEN` env var (or `config.json` fallback)
+- Multi-instance: `--instance` / `OUTLINE_API_TOKEN_<NAME>` (+ legacy `OUTLINE_API_TOKEN` for default)
 - Zero npm dependencies
 - ESM, runs on Node 18+ and Bun
 
@@ -25,37 +25,54 @@ No `bun install` / `npm install` step.
 
 ## Configuration
 
-The skill reads its token from two places; the first hit wins.
-
-### 1. `OUTLINE_API_TOKEN` env var (recommended)
-
-```bash
-# ~/.zshenv, ~/.bashrc, etc.
-export OUTLINE_API_TOKEN="ol_api_..."
-```
-
-### 2. `config.json` (fallback)
+Multi-instance is first-class. `config.json` (gitignored) holds hosts only — tokens stay in env.
 
 ```json
 {
-  "baseUrl": "https://your-outline.example.com/api",
-  "apiToken": "ol_api_..."
+  "defaultInstance": "work",
+  "instances": {
+    "work": { "baseUrl": "https://outline.example.com/api" },
+    "personal": { "baseUrl": "https://other.example.com/api" }
+  }
 }
 ```
 
-`config.json` is gitignored and never committed. `baseUrl` must point at the `/api` endpoint of your Outline instance. `apiToken` is the API token from **Settings → API Tokens** in the Outline UI.
+Legacy single-host shape still works: `{ "baseUrl": "https://.../api" }`. Instance names are arbitrary keys; env suffix is `UPPER_SNAKE(name)`.
 
-Verify the setup:
+### Tokens
+
+| Priority | Source |
+|---|---|
+| 1 | `OUTLINE_API_TOKEN_<NAME>` (e.g. `OUTLINE_API_TOKEN_PERSONAL`) |
+| 2 | `OUTLINE_API_TOKEN` — **default instance only** (compat) |
+| 3 | `instances.<name>.apiToken` / top-level `apiToken` (discouraged) |
 
 ```bash
-bun scripts/test-connection.js
+export OUTLINE_API_TOKEN_WORK="ol_api_..."
+export OUTLINE_API_TOKEN_PERSONAL="ol_api_..."
+export OUTLINE_API_TOKEN="$OUTLINE_API_TOKEN_WORK"  # optional default alias
+```
+
+Never commit real tokens or private hostnames you do not want public. Keep `config.json` gitignored (hosts only).
+
+### Picking an instance
+
+Every script accepts `--instance <name>` / `-i <name>`. Else: `OUTLINE_INSTANCE` env → `config.defaultInstance`.
+
+```bash
+bun scripts/test-connection.js --all
+bun scripts/list-collections.js --instance personal
+bun scripts/search.js --query "deploy" -i personal
 ```
 
 ## Quick start
 
 ```bash
-# Search for documents
+# Search for documents (default instance)
 bun scripts/search.js --query "deployment guide"
+
+# Same on another instance
+bun scripts/search.js --query "deployment guide" --instance personal
 
 # Read a document by id
 bun scripts/read.js --id <document-uuid>

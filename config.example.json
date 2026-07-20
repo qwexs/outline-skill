@@ -1,4 +1,12 @@
 {
-  "_comment": "⚠️ ЗАГЛУШКА. Замените baseUrl на реальный URL вашего Outline-инстанса (например, https://outline.example.com/api). НЕ публикуйте URL с этим placeholder-ом в чат/документы.",
-  "baseUrl": "https://REPLACE_WITH_YOUR_OUTLINE_DOMAIN/api"
+  "_comment": "Multi-instance Outline config. Tokens go in env (OUTLINE_API_TOKEN_<NAME>), not here. Replace baseUrl values with real hosts — never commit real tokens or private hostnames you do not want public.",
+  "defaultInstance": "work",
+  "instances": {
+    "work": {
+      "baseUrl": "https://REPLACE_WITH_YOUR_OUTLINE_DOMAIN/api"
+    },
+    "personal": {
+      "baseUrl": "https://REPLACE_WITH_SECOND_OUTLINE_DOMAIN/api"
+    }
+  }
 }

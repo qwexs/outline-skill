@@ -1,26 +1,78 @@
-import { makeRequest } from './lib/outline-api.js';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+#!/usr/bin/env node
+import {
+  getClient,
+  listInstances,
+  getDefaultInstanceName,
+  parseInstanceFlag,
+} from './lib/outline-api.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const config = JSON.parse(readFileSync(join(__dirname, '..', 'config.json'), 'utf-8'));
+const args = process.argv.slice(2);
+const has = (flag) => args.includes(flag);
+const wantAll = has('--all');
 
-const instanceUrl = new URL(config.baseUrl).origin;
+if (has('--help')) {
+  console.log(`Usage: test-connection.js [--instance <name>|-i <name>] [--all] [--json]
+  --instance / -i   Test one instance (default: config.defaultInstance)
+  --all             Test every configured instance
+  --json            Machine-readable output`);
+  process.exit(0);
+}
 
-// ⚠️ Guard: предупредить, если baseUrl указывает на placeholder/example.com.
-// Это типичная ошибка, когда агент копирует шаблон из SKILL.md вместо config.json.
-if (/example\.com|REPLACE_WITH/i.test(config.baseUrl)) {
-  console.error(`❌ baseUrl указывает на placeholder: ${config.baseUrl}`);
-  console.error(`   Откройте config.json и замените на реальный URL вашего Outline.`);
-  console.error(`   Не публикуйте URL с placeholder-ом в чат или документы.`);
-  process.exit(1);
+async function testOne(name) {
+  const client = getClient(name);
+  const result = await client.makeRequest('collections.list', {});
+  return {
+    ok: true,
+    instance: client.name,
+    origin: client.outlineOrigin,
+    baseUrl: client.baseUrl,
+    collections: result.data?.length ?? 0,
+    isDefault: client.isDefault,
+  };
 }
 
 try {
-  const result = await makeRequest('collections.list', {});
-  console.log(`✅ Connected to ${instanceUrl} — ${result.data.length} collections`);
+  const names = wantAll
+    ? listInstances()
+    : [parseInstanceFlag() || getDefaultInstanceName()];
+
+  if (!names.length) {
+    console.error('No Outline instances configured in config.json');
+    process.exit(1);
+  }
+
+  const results = [];
+  let failed = 0;
+
+  for (const name of names) {
+    try {
+      const r = await testOne(name);
+      results.push(r);
+      if (!has('--json')) {
+        const mark = r.isDefault ? ' (default)' : '';
+        console.log(
+          `✅ [${r.instance}]${mark} ${r.origin} — ${r.collections} collections`
+        );
+      }
+    } catch (err) {
+      failed++;
+      results.push({ ok: false, instance: name, error: err.message });
+      if (!has('--json')) {
+        console.error(`❌ [${name}] ${err.message}`);
+      }
+    }
+  }
+
+  if (has('--json')) {
+    console.log(JSON.stringify({ results }, null, 2));
+  } else if (wantAll) {
+    console.log(
+      `\n${results.filter((r) => r.ok).length}/${results.length} instances OK`
+    );
+  }
+
+  process.exit(failed ? 1 : 0);
 } catch (err) {
-  console.error(`❌ Connection failed: ${err.message}`);
+  console.error(`❌ ${err.message}`);
   process.exit(1);
 }

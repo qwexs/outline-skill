@@ -5,7 +5,7 @@ const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
 
 if (has('--help')) {
-  console.log(`Usage: list-collections.js [--json]`);
+  console.log(`Usage: list-collections.js [--instance <name>] [--json]`);
   process.exit(0);
 }
 

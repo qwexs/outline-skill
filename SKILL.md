@@ -32,27 +32,53 @@ cp config.example.json config.json
 
 ## ⚙️ Конфигурация
 
-**Токен не хранится в файлах.** Резолвер читает в таком порядке:
+Поддерживается **несколько Outline-инстансов** в одном skill.
 
-1. `OUTLINE_API_TOKEN` env var — рекомендуется. Задайте один раз в shell-rc:
-   ```bash
-   # ~/.zshenv (или ~/.bashrc)
-   export OUTLINE_API_TOKEN="ol_api_..."
-   ```
-2. `config.apiToken` — legacy fallback, если env недоступен.
+### `config.json` (в `.gitignore`, не коммитится)
 
-`config.json` (уже в `.gitignore`, **не коммитится**):
 ```json
 {
-  "baseUrl": "https://REPLACE_WITH_YOUR_OUTLINE_DOMAIN/api"
+  "defaultInstance": "work",
+  "instances": {
+    "work": { "baseUrl": "https://outline.example.com/api" },
+    "personal": { "baseUrl": "https://other.example.com/api" }
+  }
 }
 ```
 
-Шаблон для `config.json` лежит в `config.example.json` — копируйте его.
+Legacy single-instance тоже работает: `{ "baseUrl": "https://.../api" }`.
 
-Если токен не задан ни в env, ни в `config.json`, skill бросит понятную ошибку при первом запросе.
+Шаблон — `config.example.json`. Имена инстансов — произвольные ключи; env-суффикс = `UPPER_SNAKE` от имени.
 
-> ⚠️ **ВАЖНО — ЗАГЛУШКА.** `your-outline.example.com` и `REPLACE_WITH_YOUR_OUTLINE_DOMAIN` — это **плейсхолдеры**, не реальный домен. Реальный URL — в `config.json` после настройки (например, `https://outline.<your-domain>/api`). `test-connection.js` теперь падает с ошибкой, если видит placeholder, — это guard против типичной ошибки «скопировал шаблон из SKILL.md, забыл подставить свой домен». Перед публикацией любого URL (`/doc/...`, `/collection/...`) в чат или документ — **снимать реальный домен через `bun scripts/test-connection.js`**, а не из этого файла.
+### Токены (не в файлах)
+
+Порядок для каждого инстанса:
+
+1. `OUTLINE_API_TOKEN_<NAME>` — рекомендуется для multi-instance  
+   (`work` → `OUTLINE_API_TOKEN_WORK`, `personal` → `OUTLINE_API_TOKEN_PERSONAL`)
+2. `OUTLINE_API_TOKEN` — только для **default** инстанса (compat)
+3. `instances.<name>.apiToken` / top-level `apiToken` — legacy disk fallback
+
+```bash
+export OUTLINE_API_TOKEN_WORK="ol_api_..."
+export OUTLINE_API_TOKEN_PERSONAL="ol_api_..."
+# optional alias for default:
+export OUTLINE_API_TOKEN="$OUTLINE_API_TOKEN_WORK"
+```
+
+### Выбор инстанса
+
+На **любом** скрипте:
+
+```bash
+bun scripts/list-collections.js --instance personal
+bun scripts/search.js --query "deploy" -i personal
+bun scripts/test-connection.js --all
+```
+
+Порядок: `--instance`/`-i` → env `OUTLINE_INSTANCE` → `config.defaultInstance`.
+
+> ⚠️ **ЗАГЛУШКИ.** `your-outline.example.com` / `REPLACE_WITH_*` — не реальные домены. Перед публикацией URL в чат — снимай origin через `bun scripts/test-connection.js --instance <name>`, не из SKILL.md.
 
 ## 🔧 Quick Commands
 

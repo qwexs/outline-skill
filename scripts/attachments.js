@@ -15,7 +15,7 @@
 
 import {
   makeRequest,
-  apiToken,
+  getClient,
   resolveOutlineUrl,
   isOutlineHost,
 } from './lib/outline-api.js';
@@ -73,7 +73,7 @@ async function uploadToSignedUrl(uploadUrl, form, filePath, contentType, name) {
   // Same-origin Outline upload endpoints require the API token.
   // External signed URLs (S3 etc.) reject extra Authorization headers.
   if (isOutlineHost(uploadUrl)) {
-    headers.Authorization = `Bearer ${apiToken}`;
+    headers.Authorization = `Bearer ${getClient().apiToken}`;
   }
 
   const res = await fetch(absoluteUrl, {
@@ -111,6 +111,7 @@ Actions:
   redirect  Get a temporary signed URL for downloading an attachment
 
 Options:
+  --instance|-i <name>  Outline instance (default: config.defaultInstance)
   --document-id <id>     Filter list / scope create to a document
   --attachment-id <id>   Attachment to delete or download
   --file <path>          Local file path (for create)

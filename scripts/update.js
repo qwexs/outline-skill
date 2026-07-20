@@ -16,7 +16,7 @@ const getMulti = (flag) => {
 };
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: update.js --id <uuid> [--title <text>] [--text <markdown>] [--mode <replace|append|prepend>] [--json] [--attach <file> [--attach <file> ...]] [--attach-name <name>]`);
+  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--mode <replace|append|prepend>] [--json] [--attach <file> [--attach <file> ...]] [--attach-name <name>]`);
   console.log(`If --text is omitted, reads from stdin.`);
   console.log(`\n--attach <file>     Attach a file to the document. Can be repeated for multiple files.`);
   console.log(`--attach-name <n>   Display name for the last --attach file (optional).`);

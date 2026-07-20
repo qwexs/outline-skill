@@ -6,7 +6,7 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: read.js --id <uuid> [--json]`);
+  console.log(`Usage: read.js --id <uuid> [--instance <name>] [--json]`);
   process.exit(get('--id') ? 0 : 1);
 }
 
