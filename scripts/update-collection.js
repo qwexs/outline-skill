@@ -7,6 +7,7 @@
  *   bun scripts/update-collection.js --id <uuid> --color "#FF0000"
  *   bun scripts/update-collection.js --id <uuid> --private
  *   bun scripts/update-collection.js --id <uuid> --public
+ *   bun scripts/update-collection.js --id <uuid> --read-write
  */
 import { makeRequest } from './lib/outline-api.js';
 
@@ -27,6 +28,7 @@ const VALID_FLAGS = [
   '--icon',
   '--private',
   '--public',
+  '--read-write',
   '--json',
 ];
 
@@ -40,6 +42,7 @@ if (has('--help') || !get('--id')) {
   console.log(`  --icon <name>          Icon name (Outline icon set)`);
   console.log(`  --private              Make collection private (permission empty)`);
   console.log(`  --public               Make collection read-for-workspace (permission=read)`);
+  console.log(`  --read-write           Make collection editable by everyone (permission=read_write)`);
   console.log(`  --json                 Raw API JSON`);
   console.log(`  --instance / -i        Outline instance name`);
   process.exit(get('--id') ? 0 : 1);
@@ -53,8 +56,9 @@ for (const arg of args) {
   }
 }
 
-if (has('--private') && has('--public')) {
-  console.error(`Error: --private and --public are mutually exclusive.`);
+const permFlags = ['--private', '--public', '--read-write'].filter(f => has(f));
+if (permFlags.length > 1) {
+  console.error(`Error: ${permFlags.join(', ')} are mutually exclusive.`);
   process.exit(1);
 }
 
@@ -88,9 +92,13 @@ try {
     body.permission = 'read';
     changes += 1;
   }
+  if (has('--read-write')) {
+    body.permission = 'read_write';
+    changes += 1;
+  }
 
   if (changes === 0) {
-    console.error(`Error: nothing to update. Pass at least one of --name/--description/--color/--icon/--private/--public.`);
+    console.error(`Error: nothing to update. Pass at least one of --name/--description/--color/--icon/--private/--public/--read-write.`);
     process.exit(1);
   }
 
