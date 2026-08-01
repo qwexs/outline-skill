@@ -133,19 +133,23 @@ bun scripts/create.js --help
 
 ### Обновление документа
 ```bash
-# Replace mode (по умолчанию) — перезаписывает всё тело
-bun scripts/update.js --id <id> --text "New content"
+# Replace mode — перезаписывает всё тело; всегда указывай явно
+bun scripts/update.js --id <id> --mode replace --text "New content"
 
 # Append / prepend
 echo "\n\n## New Section\n\nMore content" | bun scripts/update.js --id <id> --mode append
 bun scripts/update.js --id <id> --text "⚠️ Warning: ..." --mode prepend
 
-# Patch mode (рекомендуется для точечных правок) — как official MCP
-# --find = точная markdown-подстрока из текущего дока; --text = замена
-# Сохраняет rich formatting вне затронутого фрагмента
+# Patch mode (обязателен для точечных правок) — как official MCP
+# --find = точная markdown-подстрока из текущего дока; --text = замена.
+# Скрипт проверяет, что фрагмент найден ровно один раз, и сохраняет
+# rich formatting вне затронутого фрагмента.
 bun scripts/update.js --id <id> --mode patch \
   --find "## Old heading\n\nOld paragraph" \
   --text "## New heading\n\nUpdated paragraph"
+
+# Безопасный shorthand: --find без --mode автоматически выбирает patch.
+# Без --find текстовое обновление требует явно выбрать --mode.
 ```
 
 ### Шаблоны (templates)
@@ -306,6 +310,9 @@ bun scripts/read.js --id <id>
 
 # Добавить секцию
 echo "\n\n## Troubleshooting\n\n..." | bun scripts/update.js --id <id> --mode append
+
+# Для точечной замены: сначала read, затем --mode patch --find.
+# Не используй --mode replace, если не передаёшь полное новое тело документа.
 ```
 
 ### 2. Создание технической документации

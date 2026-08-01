@@ -16,21 +16,33 @@ const getMulti = (flag) => {
 
 const VALID_MODES = ['replace', 'append', 'prepend', 'patch'];
 
+function countOccurrences(text, needle) {
+  if (!needle) return 0;
+  let count = 0;
+  let index = 0;
+  while ((index = text.indexOf(needle, index)) !== -1) {
+    count += 1;
+    index += needle.length;
+  }
+  return count;
+}
+
 if (has('--help') || !get('--id')) {
   console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--json] [--attach <file> ...] [--attach-name <name>]`);
   console.log(`If --text is omitted, reads from stdin.`);
   console.log(``);
   console.log(`Modes:`);
-  console.log(`  replace   Replace entire document body (default)`);
+  console.log(`  replace   Replace entire document body (must be explicit)`);
   console.log(`  append    Append text to end (uses editMode=append)`);
   console.log(`  prepend   Prepend text to beginning (uses editMode=prepend)`);
   console.log(`  patch     Surgical replace: find exact --find markdown, replace with --text`);
   console.log(`            Preserves rich formatting outside the matched region (MCP-style).`);
   console.log(``);
   console.log(`--find <md>         Required for --mode patch. Exact markdown substring from the doc.`);
+  console.log(`                    Supplying --find without --mode safely infers patch mode.`);
   console.log(`--attach <file>     Attach a file to the document. Can be repeated.`);
   console.log(`--attach-name <n>   Display name for the last --attach file (optional).`);
-  process.exit(get('--id') ? 0 : 1);
+  process.exit(has('--help') ? 0 : 1);
 }
 
 function buildUpdateBody({ id, title, text, mode, findText }) {
@@ -64,13 +76,20 @@ try {
     text = readFileSync(0, 'utf-8');
   }
 
-  const mode = get('--mode') || 'replace';
-  if (!VALID_MODES.includes(mode)) {
+  const findText = get('--find');
+  // Never silently turn a text update into a destructive whole-document replace.
+  // `--find` is unambiguous, so preserve a convenient safe shorthand for patches.
+  const mode = get('--mode') || (findText ? 'patch' : null);
+  if (mode && !VALID_MODES.includes(mode)) {
     console.error(`Error: invalid --mode "${mode}". Allowed: ${VALID_MODES.join(', ')}`);
     process.exit(1);
   }
+  if (text != null && !mode) {
+    console.error(`Error: --mode is required when changing document text.`);
+    console.error(`Use --mode patch --find "..." for a surgical edit, or --mode replace to overwrite the entire document.`);
+    process.exit(1);
+  }
 
-  const findText = get('--find');
   if (mode === 'patch') {
     if (!findText) {
       console.error(`Error: --find is required when --mode patch.`);
@@ -86,6 +105,16 @@ try {
   const attachFiles = getMulti('--attach');
   const attachName = get('--attach-name');
   const id = get('--id');
+
+  if (mode === 'patch') {
+    const current = await makeRequest('documents.info', { id });
+    const matches = countOccurrences(current.data?.text || '', findText);
+    if (matches !== 1) {
+      console.error(`Error: --find must match exactly once in the current document; found ${matches} matches.`);
+      console.error(`Read the document again and provide a larger, unique markdown fragment.`);
+      process.exit(1);
+    }
+  }
 
   // If there are attachments, update text first (if any), then attach.
   if (attachFiles.length > 0) {

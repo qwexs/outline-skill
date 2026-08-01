@@ -104,9 +104,9 @@ EOF
 
 ---
 
-## Сценарий 3: Поиск и bulk update
+## Сценарий 3: Поиск и bulk patch
 
-**Задача:** Найти все документы с упоминанием старого API endpoint и обновить их.
+**Задача:** Найти все документы с упоминанием старого API endpoint и точечно обновить их, не перезаписывая остальной документ.
 
 ```bash
 # 1. Поиск документов
@@ -124,12 +124,12 @@ for id in $doc_ids; do
   
   # Проверить есть ли старый URL
   if echo "$content" | grep -q "api.old.com"; then
-    # Заменить
-    new_content=$(echo "$content" | sed 's|api.old.com|api.new.com|g')
-    
-    # Обновить
-    echo "$new_content" | node scripts/update.js --id "$id" --mode replace
-    echo "✅ Updated $id"
+    # Точечно заменить. update.js проверит, что old URL встречается ровно один раз.
+    # Если в документе несколько вхождений, выбери более длинный уникальный --find.
+    node scripts/update.js --id "$id" --mode patch \
+      --find "api.old.com" \
+      --text "api.new.com"
+    echo "✅ Patched $id"
   fi
 done
 ```
@@ -345,7 +345,7 @@ cat large-document.md | node scripts/create.js --title "Large Doc" --publish
 ### 5. Batch операции с error handling
 ```bash
 for id in $doc_ids; do
-  if node scripts/update.js --id "$id" --text "..." 2>/dev/null; then
+  if node scripts/update.js --id "$id" --mode patch --find "old text" --text "new text" 2>/dev/null; then
     echo "✅ Updated $id"
   else
     echo "❌ Failed $id" >> errors.log
