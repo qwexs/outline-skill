@@ -10,8 +10,19 @@ if (has('--help') || !get('--id')) {
   process.exit(get('--id') ? 0 : 1);
 }
 
+const id = get('--id');
+// Outline API accepts either a UUID or a URL slug. Validate locally so the
+// agent gets a clear hint instead of a raw 400 from the server.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SLUG_RE = /^[A-Za-z0-9]{8,10}$/;
+if (!UUID_RE.test(id) && !SLUG_RE.test(id)) {
+  console.error(`Error: '${id}' is not a valid UUID or Outline URL slug.`);
+  console.error(`Hint: copy the slug from the document URL (/doc/...-<slug>), or the UUID from search.js output.`);
+  process.exit(1);
+}
+
 try {
-  const res = await makeRequest('documents.info', { id: get('--id') });
+  const res = await makeRequest('documents.info', { id });
   const doc = res.data;
 
   let breadcrumb = null;
