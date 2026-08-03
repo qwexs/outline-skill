@@ -92,9 +92,16 @@ bun scripts/search.js --query "bug" --limit 10 --json
 ```
 
 ### Чтение документа
+
+`--id` принимает **UUID или URL-slug** (например, `b9fqMIBlh9` из ссылки `/doc/...-b9fqMIBlh9`). Outline API сам распознаёт формат, отдельный fallback не нужен.
+
 ```bash
-bun scripts/read.js --id <document-id>
-bun scripts/read.js --id <id> --json
+# По UUID
+bun scripts/read.js --id 21641e94-dbdc-4aa9-acef-84349f9b9fc1
+# По URL-slug (напрямую, без предварительного search)
+bun scripts/read.js --id b9fqMIBlh9
+# JSON-вывод
+bun scripts/read.js --id b9fqMIBlh9 --json
 # Path: Collection / Parent / Doc (отключить: --no-breadcrumb)
 ```
 
@@ -300,13 +307,15 @@ cat document.md | bun scripts/import.js --title "From Stdin" --collection <id>
 ## 💡 Типичные сценарии
 
 ### 1. Поиск и обновление документа
-```bash
-# Найти документ
-bun scripts/search.js --query "deployment guide"
-# Получить ID из результатов
 
-# Прочитать текущий контент
-bun scripts/read.js --id <id>
+```bash
+# Если известен URL-slug (хвост ссылки /doc/...-XXXXX) — читаем сразу,
+# без search:
+bun scripts/read.js --id b9fqMIBlh9
+
+# Иначе ищем по тексту, забираем ID/slug из результатов и читаем:
+bun scripts/search.js --query "deployment guide"
+bun scripts/read.js --id <id-or-slug>
 
 # Добавить секцию
 echo "\n\n## Troubleshooting\n\n..." | bun scripts/update.js --id <id> --mode append
