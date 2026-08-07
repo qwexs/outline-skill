@@ -166,7 +166,7 @@ for id in $doc_ids; do
   echo "Exporting $id..."
   node scripts/export.js \
     --id "$id" \
-    --output "$backup_dir/$id.md"
+    --output-file "$backup_dir/$id.md"
 done
 
 echo "✅ Backup complete: $backup_dir"

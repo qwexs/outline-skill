@@ -105,6 +105,35 @@ bun scripts/read.js --id b9fqMIBlh9 --json
 # Path: Collection / Parent / Doc (отключить: --no-breadcrumb)
 ```
 
+#### Экономия контекста: выбор режима чтения
+
+- Документ небольшой → обычный вывод в stdout.
+- Большой документ → `--as-file`: markdown пишется во временный `.md` файл, путь печатается в выводе; дальше читай его обычными файловыми инструментами (чтение по диапазону, grep), не тяня весь документ в контекст.
+- Нужный диапазон строк уже известен → `--lines`: вернёт только его, с абсолютными номерами строк.
+
+**Выборка по строкам** (1-based, включительно):
+```bash
+bun scripts/read.js --id <doc-id> --lines 10-20     # диапазон
+bun scripts/read.js --id <doc-id> --lines 100-      # от строки 100 до конца
+bun scripts/read.js --id <doc-id> --lines 10        # одна строка
+bun scripts/read.js --id <doc-id> --from-line 10 --to-line 20   # то же отдельными флагами
+bun scripts/read.js --id <doc-id> --line-numbers    # нумеровать весь вывод
+```
+Номера строк в выводе — всегда абсолютные (номера строк документа), по ним легко делать следующие `--lines`-запросы. Ошибочный диапазон (не числом, до начала, за EOF) → `exit 1` с сообщением, а не тихий вывод всего документа. В `--json`-режиме при выборке добавляется поле `selectedLines`, а `data.text` содержит только выбранный диапазон.
+
+**Чтение в файл** («как с локальным .md»):
+```bash
+# Во временный файл (путь будет напечатан)
+bun scripts/read.js --id <doc-id> --as-file
+# В указанный путь (записывается как есть)
+bun scripts/read.js --id <doc-id> --output-file ./my-doc.md
+# Выборка строк + файл
+bun scripts/read.js --id <doc-id> --lines 100-150 --output-file ./section.md
+```
+Получаешь реальный `.md` файл: его можно читать построчно, `grep`-ать и передавать другим инструментам. Тело документа при этом в stdout не дублируется — только метаданные и путь к файлу.
+
+> ⚠️ **`--as-file` vs `--output-file`.** `--as-file` пишет во временную папку (`os.tmpdir()`, на macOS это `/private/var/folders/...`) — такой файл доступен только через терминал (`cat`, `grep`), файловые инструменты агента его обычно не видят. Если дальше читать документ нативным file-ридером по диапазону строк, используй `--output-file ./tmp/doc.md` с путём внутри рабочего каталога проекта.
+
 ### Создание документа
 
 **Контент можно передать ровно одним из способов** (приоритет `--file` > `--text` > stdin):
@@ -296,7 +325,8 @@ bun scripts/move.js --id <id> --parent <parent-id> --expect-parent <parent-id>
 ### Export/Import
 ```bash
 # Export
-bun scripts/export.js --id <id> --output doc.md
+bun scripts/export.js --id <id> --output-file doc.md
+bun scripts/export.js --id <id> --as-file   # во временный .md, путь печатается (удобно агенту)
 bun scripts/export.js --id <id> --include-children > full-export.md
 
 # Import
@@ -344,7 +374,7 @@ echo "# Endpoints\n\n..." | \
 ```bash
 # Экспортировать все документы
 for doc_id in $(bun scripts/tree.js --collection <id> --json | jq -r '.[].id'); do
-  bun scripts/export.js --id "$doc_id" --output "backup/$doc_id.md"
+  bun scripts/export.js --id "$doc_id" --output-file "backup/$doc_id.md"
 done
 ```
 
