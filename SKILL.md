@@ -70,11 +70,12 @@ export OUTLINE_API_TOKEN="$OUTLINE_API_TOKEN_WORK"
 
 ### Выбор инстанса
 
-На **любом** скрипте:
+Доступен на **всех** скриптах (`--instance` / `-i`):
 
 ```bash
 bun scripts/list-collections.js --instance personal
 bun scripts/search.js --query "deploy" -i personal
+bun scripts/tree.js --collection <id> --instance work --json
 bun scripts/test-connection.js --all
 ```
 

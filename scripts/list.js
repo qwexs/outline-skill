@@ -9,8 +9,8 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || (!get('--collection') && !get('--parent'))) {
-  console.log(`Usage: list.js --collection <id> [--limit N] [--json]
-       list.js --parent <id> [--limit N] [--json]
+  console.log(`Usage: list.js --collection <id> [--instance <name>] [--limit N] [--json]
+       list.js --parent <id> [--instance <name>] [--limit N] [--json]
 
 Lists documents in a collection, or child documents of a parent document.
 Exactly one of --collection or --parent is required.
@@ -18,6 +18,7 @@ Exactly one of --collection or --parent is required.
 Options:
   --collection <id>  Collection ID (lists all docs in collection)
   --parent <id>      Parent document ID (returns direct children)
+  --instance <name>  Outline instance (or use OUTLINE_INSTANCE env)
   --limit <N>        Max results (default 100)
   --json             Output raw JSON
 

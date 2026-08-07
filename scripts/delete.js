@@ -6,14 +6,15 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: delete.js --id <uuid> [--permanent] [--json]
+  console.log(`Usage: delete.js --id <uuid> [--instance <name>] [--permanent] [--json]
 
 Deletes a document (moves to trash or permanently).
 
 Options:
-  --id <uuid>    Document ID (required)
-  --permanent    Delete permanently instead of moving to trash
-  --json         Output JSON response`);
+  --id <uuid>        Document ID (required)
+  --instance <name>  Outline instance (or use OUTLINE_INSTANCE env)
+  --permanent        Delete permanently instead of moving to trash
+  --json             Output JSON response`);
   process.exit(has('--help') ? 0 : 1);
 }
 

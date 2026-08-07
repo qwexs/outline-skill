@@ -16,12 +16,13 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: revisions.js --id <document-uuid> [--rev <index|uuid|latest>] [--json]
+  console.log(`Usage: revisions.js --id <document-uuid> [--instance <name>] [--rev <index|uuid|latest>] [--json]
 
 List document revision history or show a specific revision's content.
 
 Options:
   --id <uuid>       Document ID (required)
+  --instance <name> Outline instance (or use OUTLINE_INSTANCE env)
   --rev <value>     Show specific revision:
                       - "latest" or "1" = most recent
                       - number (1-N) = revision by index (1 = newest)

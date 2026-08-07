@@ -8,12 +8,13 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: export.js --id <uuid> [--output-file <path>] [--as-file] [--include-children] [--json]
+  console.log(`Usage: export.js --id <uuid> [--instance <name>] [--output-file <path>] [--as-file] [--include-children] [--json]
 
 Exports a document as markdown.
 
 Options:
   --id <uuid>              Document ID (required)
+  --instance <name>        Outline instance (or use OUTLINE_INSTANCE env)
   --output-file <path>     Save to file (default: stdout)
   --as-file                Write to temp .md file (recommended for agents)
   --include-children       Include child documents

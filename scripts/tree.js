@@ -6,12 +6,13 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--collection')) {
-  console.log(`Usage: tree.js --collection <id> [--json]
+  console.log(`Usage: tree.js --collection <id> [--instance <name>] [--json]
 
 Shows hierarchical document structure of a collection.
 
 Options:
   --collection <id>  Collection ID (required)
+  --instance <name>  Outline instance (or use OUTLINE_INSTANCE env)
   --json             Output raw documentStructure as JSON`);
   process.exit(has('--help') ? 0 : 1);
 }

@@ -6,7 +6,7 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--query')) {
-  console.log(`Usage: search.js --query <text> [--collection <id>] [--date-filter <day|week|month|year>] [--limit <N>] [--json] [--no-breadcrumb]`);
+  console.log(`Usage: search.js --query <text> [--instance <name>] [--collection <id>] [--date-filter <day|week|month|year>] [--limit <N>] [--json] [--no-breadcrumb]`);
   process.exit(get('--query') ? 0 : 1);
 }
 

@@ -6,14 +6,15 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: archive.js --id <uuid> [--restore] [--json]
+  console.log(`Usage: archive.js --id <uuid> [--instance <name>] [--restore] [--json]
 
 Archives or restores a document.
 
 Options:
-  --id <uuid>    Document ID (required)
-  --restore      Restore from archive instead of archiving
-  --json         Output JSON response`);
+  --id <uuid>        Document ID (required)
+  --instance <name>  Outline instance (or use OUTLINE_INSTANCE env)
+  --restore          Restore from archive instead of archiving
+  --json             Output JSON response`);
   process.exit(has('--help') ? 0 : 1);
 }
 

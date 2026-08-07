@@ -8,12 +8,13 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--title')) {
-  console.log(`Usage: import.js --title <text> [--file <path>] [--collection <id>] [--parent <id>] [--publish] [--json]
+  console.log(`Usage: import.js --title <text> [--instance <name>] [--file <path>] [--collection <id>] [--parent <id>] [--publish] [--json]
 
 Imports a markdown file as a new document.
 
 Options:
   --title <text>       Document title (required)
+  --instance <name>    Outline instance (or use OUTLINE_INSTANCE env)
   --file <path>        Markdown file to import (default: read from stdin)
   --collection <id>    Target collection ID
   --parent <id>        Parent document ID

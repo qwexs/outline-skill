@@ -6,12 +6,13 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: duplicate.js --id <uuid> [--title <text>] [--recursive] [--collection <id>] [--parent <id>] [--publish] [--json]
+  console.log(`Usage: duplicate.js --id <uuid> [--instance <name>] [--title <text>] [--recursive] [--collection <id>] [--parent <id>] [--publish] [--json]
 
 Duplicates a document.
 
 Options:
   --id <uuid>          Document ID to duplicate (required)
+  --instance <name>    Outline instance (or use OUTLINE_INSTANCE env)
   --title <text>       New title (default: "Copy of ...")
   --recursive          Also duplicate child documents
   --collection <id>    Target collection ID

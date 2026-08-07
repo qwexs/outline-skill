@@ -6,11 +6,12 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: move.js --id <uuid> [--collection <id>] [--parent <id|null>] [--expect-parent <id|null>] [--json]`);
-  console.log(`  --id        Document to move (required)`);
-  console.log(`  --collection  Target collection id (optional, omit to keep current)`);
-  console.log(`  --parent      Target parent document id, or 'null' to detach to top level (optional)`);
-  console.log(`  --expect-parent  After move, verify documents.info.parentDocumentId matches this value.`);
+  console.log(`Usage: move.js --id <uuid> [--instance <name>] [--collection <id>] [--parent <id|null>] [--expect-parent <id|null>] [--json]`);
+  console.log(`  --id              Document to move (required)`);
+  console.log(`  --instance <name> Outline instance (or use OUTLINE_INSTANCE env)`);
+  console.log(`  --collection      Target collection id (optional, omit to keep current)`);
+  console.log(`  --parent          Target parent document id, or 'null' to detach to top level (optional)`);
+  console.log(`  --expect-parent   After move, verify documents.info.parentDocumentId matches this value.`);
   console.log(`                   Pass 'null' to assert document is now at top level.`);
   console.log(`                   Exits with code 2 and a warning if actual != expected.`);
   console.log(`  --json       Raw JSON output`);
