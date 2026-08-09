@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 import { makeRequest, getDocumentBreadcrumb } from './lib/outline-api.js';
 import { writeFileSync } from 'fs';
-import { tmpdir } from 'os';
 
 const args = process.argv.slice(2);
 const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 < args.length ? args[i + 1] : null; };
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: read.js --id <uuid-or-slug> [--instance <name>] [--json] [--no-breadcrumb] [--lines <start>[-[end]]] [--from-line <n>] [--to-line <n>] [--line-numbers] [--output-file <path>] [--as-file]`);
+  console.log(`Usage: read.js --id <uuid-or-slug> [--instance <name>] [--json] [--no-breadcrumb] [--lines <start>[-[end]]] [--from-line <n>] [--to-line <n>] [--line-numbers] [--output-file <path>]`);
   process.exit(get('--id') ? 0 : 1);
 }
 
@@ -97,12 +96,8 @@ try {
   }
 
   // ── File output mode (agent treats the doc like a local .md file) ────
-  // --output-file <path> writes to path (respected as-is);
-  // --as-file writes to a temp .md and prints its path.
-  let outputFilePath = get('--output-file');
-  if (!outputFilePath && has('--as-file')) {
-    outputFilePath = `${tmpdir()}/outline-doc-${doc.id}-${Date.now()}.md`;
-  }
+  // --output-file <path> writes to the explicit path as-is.
+  const outputFilePath = get('--output-file');
   if (outputFilePath) {
     writeFileSync(outputFilePath, selectedText, 'utf-8');
   }

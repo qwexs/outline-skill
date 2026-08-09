@@ -109,7 +109,7 @@ bun scripts/read.js --id b9fqMIBlh9 --json
 #### Экономия контекста: выбор режима чтения
 
 - Документ небольшой → обычный вывод в stdout.
-- Большой документ → `--as-file`: markdown пишется во временный `.md` файл, путь печатается в выводе; дальше читай его обычными файловыми инструментами (чтение по диапазону, grep), не тяня весь документ в контекст.
+- Большой документ, который потом будет читать file-reader агента → `--output-file <абсолютный-путь-в-workspace>`: markdown сохраняется в доступный агенту `.md` файл, без дублирования тела в stdout.
 - Нужный диапазон строк уже известен → `--lines`: вернёт только его, с абсолютными номерами строк.
 
 **Выборка по строкам** (1-based, включительно):
@@ -124,16 +124,16 @@ bun scripts/read.js --id <doc-id> --line-numbers    # нумеровать ве�
 
 **Чтение в файл** («как с локальным .md»):
 ```bash
-# Во временный файл (путь будет напечатан)
-bun scripts/read.js --id <doc-id> --as-file
-# В указанный путь (записывается как есть)
-bun scripts/read.js --id <doc-id> --output-file ./my-doc.md
+# Рекомендуется для агента: абсолютный путь внутри его workspace
+bun scripts/read.js --id <doc-id> \
+  --output-file /absolute/path/in/workspace/my-doc.md
 # Выборка строк + файл
-bun scripts/read.js --id <doc-id> --lines 100-150 --output-file ./section.md
+bun scripts/read.js --id <doc-id> --lines 100-150 \
+  --output-file /absolute/path/in/workspace/section.md
 ```
 Получаешь реальный `.md` файл: его можно читать построчно, `grep`-ать и передавать другим инструментам. Тело документа при этом в stdout не дублируется — только метаданные и путь к файлу.
 
-> ⚠️ **`--as-file` vs `--output-file`.** `--as-file` пишет во временную папку (`os.tmpdir()`, на macOS это `/private/var/folders/...`) — такой файл доступен только через терминал (`cat`, `grep`), файловые инструменты агента его обычно не видят. Если дальше читать документ нативным file-ридером по диапазону строк, используй `--output-file ./tmp/doc.md` с путём внутри рабочего каталога проекта.
+> ⚠️ Для последующего чтения агентом передавай `--output-file` с **абсолютным путём внутри его workspace**; родительская директория должна уже существовать.
 
 ### Создание документа
 
@@ -326,8 +326,7 @@ bun scripts/move.js --id <id> --parent <parent-id> --expect-parent <parent-id>
 ### Export/Import
 ```bash
 # Export
-bun scripts/export.js --id <id> --output-file doc.md
-bun scripts/export.js --id <id> --as-file   # во временный .md, путь печатается (удобно агенту)
+bun scripts/export.js --id <id> --output-file /absolute/path/in/workspace/doc.md
 bun scripts/export.js --id <id> --include-children > full-export.md
 
 # Import
