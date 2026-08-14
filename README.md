@@ -101,9 +101,9 @@ Every script supports `--json` for machine-readable output and `--help` for the 
 |---|---|
 | `search.js` | Full-text search with context snippets |
 | `read.js` | Get a document by id or share id |
-| `create.js` | Create a document (stdin or `--text`) |
+| `create.js` | Create a document (`--file`, stdin, or `--text`) |
 | `create-collection.js` | Create a collection |
-| `update.js` | Update a document (`patch` / `append` / `prepend` / explicit `replace`) |
+| `update.js` | Update a document (`patch` / `append` / `prepend` / explicit `replace`; `--text-file` / stdin / `--text`) |
 | `delete.js` | Move to trash (`--permanent` to delete forever) |
 | `archive.js` | Archive / restore a document |
 | `duplicate.js` | Duplicate a document (`--recursive` for sub-tree) |
@@ -120,7 +120,7 @@ Every script is a thin wrapper around one Outline API endpoint — no client lib
 
 ### Safe updates
 
-`update.js` requires an explicit `--mode` whenever document text changes, so an omitted flag can never silently replace the full body. For targeted edits use `--mode patch --find "exact current markdown" --text "replacement"`; the command first verifies that the fragment occurs exactly once. Supplying `--find` without `--mode` also infers `patch` safely. Use `--mode replace` only when supplying the complete replacement body.
+`update.js` requires an explicit `--mode` whenever document text changes, so an omitted flag can never silently replace the full body. For targeted edits use `--mode patch --find "exact current markdown" --text "replacement"`; the command first verifies that the fragment occurs exactly once. Supplying `--find` / `--find-file` without `--mode` also infers `patch` safely. Use `--mode replace` only when supplying the complete replacement body. For multiline markdown or anything with backticks, pass the body via `--text-file` or stdin — not `--text`.
 
 ## Related skills
 

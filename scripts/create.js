@@ -32,7 +32,7 @@ if (has('--help')) {
   console.log(`Usage: create.js --title <text> [content source] [options]`);
   console.log(``);
   console.log(`Content source (one of, optional if --template-id provides body):`);
-  console.log(`  --text <markdown>     Inline markdown body`);
+  console.log(`  --text <markdown>     Inline markdown — not for backticks / multiline; use --file or stdin`);
   console.log(`  --file <path>         Read markdown body from file`);
   console.log(`  stdin                 Pipe markdown via stdin`);
   console.log(`  --template-id <uuid>  Prefill from template (body used unless --text/--file/stdin given)`);

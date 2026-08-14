@@ -11,8 +11,8 @@ Skill для работы с Outline Wiki (your-outline.example.com) — пои�
 
 - **Поиск** — full-text search по всей wiki с контекстными сниппетами и breadcrumbs
 - **Чтение** — получение документов по ID + path (`Collection / Parent / Doc`)
-- **Создание** — новых документов и коллекций (`--file`, `--text`, stdin или `--template-id`)
-- **Обновление** — replace/append/prepend/**patch** (`editMode` + `findText`, как в official MCP)
+- **Создание** — новых документов и коллекций (`--file`, stdin, `--text` или `--template-id`)
+- **Обновление** — replace/append/prepend/**patch** (`--text-file` / stdin / `--text`; `editMode` + `findText`, как в official MCP)
 - **Шаблоны** — `templates.js` list/info + create из template
 - **Коллекции** — create + **update** (`update-collection.js`: name/description/color/icon/private/public)
 - **Список** — документы коллекции или прямые дети документа (`list.js`)
@@ -135,22 +135,54 @@ bun scripts/read.js --id <doc-id> --lines 100-150 \
 
 > ⚠️ Для последующего чтения агентом передавай `--output-file` с **абсолютным путём внутри его workspace**; родительская директория должна уже существовать.
 
-### Создание документа
+### Passing a markdown body
 
-**Контент можно передать ровно одним из способов** (приоритет `--file` > `--text` > stdin):
+The shell expands backticks (`` ` ``) and `$(...)` **before** the script starts. Node receives an already-corrupted argument — `create.js` / `update.js` cannot undo that.
+
+**Do not** pass markdown that contains backticks, `$(...)`, or multiple lines via `--text` / `--find` as a CLI argument.
+
+For that content, use a file or stdin:
+
+| | create | update |
+|---|---|---|
+| file | `--file <path>` | `--text-file <path>` |
+| pipe / quoted heredoc | stdin | stdin |
+| short single-line string with no `` ` `` or `$(...)` | `--text` | `--text` |
 
 ```bash
-# Из файла (рекомендуемый способ для больших markdown)
+# create
+bun scripts/create.js --title "Import" --file ./document.md --collection <id> --publish
+cat document.md | bun scripts/create.js --title "Import" --collection <id> --publish
+
+# update
+bun scripts/update.js --id <id> --mode replace --text-file ./document.md
+cat document.md | bun scripts/update.js --id <id> --mode replace
+
+# quoted heredoc (quotes around EOF are required — otherwise the shell eats backticks)
+cat << 'EOF' | bun scripts/update.js --id <id> --mode append
+## Code
+`inline` and fenced blocks stay intact
+EOF
+```
+
+`--find` with backticks is the same trap: write the fragment to a file and pass `--find-file`.
+
+### Создание документа
+
+Pass the body through **exactly one** source (priority `--file` > `--text` > stdin):
+
+```bash
+# From a file (preferred)
 bun scripts/create.js --title "Import" --file ./document.md --collection <id> --publish
 
-# Из stdin (cat / heredoc / pipe)
+# From stdin (cat / quoted heredoc / pipe)
 cat document.md | bun scripts/create.js --title "Import" --collection <id> --publish
 echo "# My Document\n\nContent here" | bun scripts/create.js --title "New Doc" --publish
 
-# Инлайн-аргументом
+# Inline — short string only, no backticks / $(...)
 bun scripts/create.js --title "Quick Note" --text "# Note\n\nContent" --publish
 
-# Из шаблона (body берётся из template, если не передан --text/--file/stdin)
+# From a template (body comes from the template unless --text/--file/stdin is set)
 bun scripts/create.js --title "From template" --template-id <uuid> --collection <id> --publish
 ```
 
@@ -169,24 +201,33 @@ bun scripts/create.js --help
 ```
 
 ### Обновление документа
+
+Body source priority: `--text-file` > `--text` > stdin. `update.js` takes `--text-file`, not `--file`.
+
 ```bash
-# Replace mode — перезаписывает всё тело; всегда указывай явно
-bun scripts/update.js --id <id> --mode replace --text "New content"
+# Replace — overwrites the entire body; always pass --mode explicitly
+bun scripts/update.js --id <id> --mode replace --text-file ./new-body.md
+cat new-body.md | bun scripts/update.js --id <id> --mode replace
 
 # Append / prepend
 echo "\n\n## New Section\n\nMore content" | bun scripts/update.js --id <id> --mode append
 bun scripts/update.js --id <id> --text "⚠️ Warning: ..." --mode prepend
 
-# Patch mode (обязателен для точечных правок) — как official MCP
-# --find = точная markdown-подстрока из текущего дока; --text = замена.
-# Скрипт проверяет, что фрагмент найден ровно один раз, и сохраняет
-# rich formatting вне затронутого фрагмента.
+# Patch (required for surgical edits) — same as official MCP.
+# --find / --find-file = exact markdown substring; --text / --text-file = replacement.
+# The script checks the fragment occurs exactly once and preserves
+# rich formatting outside the matched region.
 bun scripts/update.js --id <id> --mode patch \
-  --find "## Old heading\n\nOld paragraph" \
-  --text "## New heading\n\nUpdated paragraph"
+  --find-file ./old-fragment.md \
+  --text-file ./new-fragment.md
 
-# Безопасный shorthand: --find без --mode автоматически выбирает patch.
-# Без --find текстовое обновление требует явно выбрать --mode.
+# Short fragment with no backticks may be inline
+bun scripts/update.js --id <id> --mode patch \
+  --find "api.old.com" \
+  --text "api.new.com"
+
+# Safe shorthand: --find / --find-file without --mode infers patch.
+# Without --find, a text update requires an explicit --mode.
 ```
 
 ### Шаблоны (templates)
@@ -350,8 +391,9 @@ bun scripts/read.js --id <id-or-slug>
 # Добавить секцию
 echo "\n\n## Troubleshooting\n\n..." | bun scripts/update.js --id <id> --mode append
 
-# Для точечной замены: сначала read, затем --mode patch --find.
-# Не используй --mode replace, если не передаёшь полное новое тело документа.
+# Surgical replace: read first, then --mode patch --find / --find-file.
+# Multiline replacement or code — via --text-file, not --text.
+# Do not use --mode replace unless you are sending the full new document body.
 ```
 
 ### 2. Создание технической документации

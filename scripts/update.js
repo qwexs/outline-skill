@@ -27,9 +27,26 @@ function countOccurrences(text, needle) {
   return count;
 }
 
+function readFlagFile(flag) {
+  const filePath = get(flag);
+  if (!filePath) return null;
+  if (!existsSync(filePath)) {
+    console.error(`Error: ${flag} path does not exist: ${filePath}`);
+    process.exit(1);
+  }
+  return readFileSync(filePath, 'utf-8');
+}
+
+// Files almost always end with a newline; --find is a substring, so strip one.
+function stripOneTrailingNewline(s) {
+  if (s.endsWith('\r\n')) return s.slice(0, -2);
+  if (s.endsWith('\n')) return s.slice(0, -1);
+  return s;
+}
+
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--json] [--attach <file> ...] [--attach-name <name>]`);
-  console.log(`If --text is omitted, reads from stdin.`);
+  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--text-file <path>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--find-file <path>] [--json] [--attach <file> ...] [--attach-name <name>]`);
+  console.log(`Content source priority: --text-file > --text > stdin.`);
   console.log(``);
   console.log(`Modes:`);
   console.log(`  replace   Replace entire document body (must be explicit)`);
@@ -38,8 +55,11 @@ if (has('--help') || !get('--id')) {
   console.log(`  patch     Surgical replace: find exact --find markdown, replace with --text`);
   console.log(`            Preserves rich formatting outside the matched region (MCP-style).`);
   console.log(``);
+  console.log(`--text-file <path>  Read replacement markdown from a file. Prefer this (or stdin)`);
+  console.log(`                    for multiline text or anything with backticks / $(...).`);
   console.log(`--find <md>         Required for --mode patch. Exact markdown substring from the doc.`);
-  console.log(`                    Supplying --find without --mode safely infers patch mode.`);
+  console.log(`                    Supplying --find/--find-file without --mode safely infers patch.`);
+  console.log(`--find-file <path>  Same as --find, read from a file (one trailing newline stripped).`);
   console.log(`--attach <file>     Attach a file to the document. Can be repeated.`);
   console.log(`--attach-name <n>   Display name for the last --attach file (optional).`);
   process.exit(has('--help') ? 0 : 1);
@@ -71,14 +91,18 @@ function buildUpdateBody({ id, title, text, mode, findText }) {
 }
 
 try {
-  let text = get('--text');
+  let text = readFlagFile('--text-file');
+  if (text == null && get('--text') != null) {
+    text = get('--text');
+  }
   if (text == null && !process.stdin.isTTY) {
     text = readFileSync(0, 'utf-8');
   }
 
-  const findText = get('--find');
+  const findFromFile = readFlagFile('--find-file');
+  const findText = findFromFile != null ? stripOneTrailingNewline(findFromFile) : get('--find');
   // Never silently turn a text update into a destructive whole-document replace.
-  // `--find` is unambiguous, so preserve a convenient safe shorthand for patches.
+  // `--find` / `--find-file` is unambiguous, so preserve a convenient safe shorthand for patches.
   const mode = get('--mode') || (findText ? 'patch' : null);
   if (mode && !VALID_MODES.includes(mode)) {
     console.error(`Error: invalid --mode "${mode}". Allowed: ${VALID_MODES.join(', ')}`);
@@ -92,12 +116,12 @@ try {
 
   if (mode === 'patch') {
     if (!findText) {
-      console.error(`Error: --find is required when --mode patch.`);
+      console.error(`Error: --find / --find-file is required when --mode patch.`);
       console.error(`Copy the exact markdown substring from the document to replace.`);
       process.exit(1);
     }
     if (text == null) {
-      console.error(`Error: --text (or stdin) is required when --mode patch.`);
+      console.error(`Error: --text / --text-file (or stdin) is required when --mode patch.`);
       process.exit(1);
     }
   }
@@ -221,7 +245,7 @@ try {
   } else {
     // No attachments — main flow
     if (text == null && !get('--title')) {
-      console.error(`Error: nothing to update. Provide --text/--title or stdin.`);
+      console.error(`Error: nothing to update. Provide --text-file/--text/--title or stdin.`);
       process.exit(1);
     }
 

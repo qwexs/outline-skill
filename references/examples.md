@@ -336,10 +336,14 @@ count=$(echo "$results" | jq '.data | length')
 echo "Found $count documents"
 ```
 
-### 4. Stdin для больших документов
+### 4. Stdin / file for a markdown body
 ```bash
+# create: --file or stdin
 cat large-document.md | node scripts/create.js --title "Large Doc" --publish
 ./generate-report.sh | node scripts/create.js --title "Generated Report" --publish
+
+# update: --text-file or stdin (not --text if the body contains backticks)
+node scripts/update.js --id <id> --mode replace --text-file ./new-body.md
 ```
 
 ### 5. Batch операции с error handling
