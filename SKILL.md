@@ -5,38 +5,38 @@ description: Work with Outline Wiki (your-outline.example.com) - search, read, c
 
 # Outline Wiki Skill
 
-Skill для работы с Outline Wiki (your-outline.example.com) — поиск, создание, чтение, обновление и управление документацией и вложениями.
+Skill for Outline Wiki (your-outline.example.com) — search, create, read, update, and manage documentation and attachments.
 
-## 🎯 Что умеет
+## 🎯 What it does
 
-- **Поиск** — full-text search по всей wiki с контекстными сниппетами и breadcrumbs
-- **Чтение** — получение документов по ID + path (`Collection / Parent / Doc`)
-- **Создание** — новых документов и коллекций (`--file`, stdin, `--text` или `--template-id`)
-- **Обновление** — replace/append/prepend/**patch** (`--text-file` / stdin / `--text`; `editMode` + `findText`, как в official MCP)
-- **Шаблоны** — `templates.js` list/info + create из template
-- **Коллекции** — create + **update** (`update-collection.js`: name/description/color/icon/private/public)
-- **Список** — документы коллекции или прямые дети документа (`list.js`)
-- **Вложения** — загрузка, скачивание, удаление файлов (`attachments.js`)
-- **Управление** — delete, archive, duplicate, **move** (смена parent/коллекции с post-check)
-- **Структура** — просмотр иерархии коллекций
-- **Import/Export** — работа с markdown файлами
+- **Search** — full-text search across the wiki with context snippets and breadcrumbs
+- **Read** — fetch documents by ID + path (`Collection / Parent / Doc`)
+- **Create** — new documents and collections (`--file`, stdin, `--text`, or `--template-id`)
+- **Update** — replace/append/prepend/**patch** (`--text-file` / stdin / `--text`; `editMode` + `findText`, same as official MCP)
+- **Templates** — `templates.js` list/info + create from a template
+- **Collections** — create + **update** (`update-collection.js`: name/description/color/icon/private/public)
+- **List** — documents in a collection, or direct children of a document (`list.js`)
+- **Attachments** — upload, download, delete files (`attachments.js`)
+- **Manage** — delete, archive, duplicate, **move** (change parent/collection with a post-check)
+- **Structure** — browse collection hierarchy
+- **Import/Export** — work with markdown files
 
-## 📦 Установка
+## 📦 Install
 
-Зависимостей нет, `bun install` не нужен.
+No dependencies. `bun install` is not required.
 
 ```bash
 git clone https://github.com/qwexs/outline-skill.git
 cd outline-skill
 cp config.example.json config.json
-# отредактируйте config.json — см. раздел «Конфигурация»
+# edit config.json — see Configuration
 ```
 
-## ⚙️ Конфигурация
+## ⚙️ Configuration
 
-Поддерживается **несколько Outline-инстансов** в одном skill.
+Multiple Outline instances are supported in one skill.
 
-### `config.json` (в `.gitignore`, не коммитится)
+### `config.json` (gitignored, not committed)
 
 ```json
 {
@@ -48,17 +48,17 @@ cp config.example.json config.json
 }
 ```
 
-Legacy single-instance тоже работает: `{ "baseUrl": "https://.../api" }`.
+Legacy single-instance still works: `{ "baseUrl": "https://.../api" }`.
 
-Шаблон — `config.example.json`. Имена инстансов — произвольные ключи; env-суффикс = `UPPER_SNAKE` от имени.
+Template: `config.example.json`. Instance names are arbitrary keys; the env suffix is `UPPER_SNAKE` of the name.
 
-### Токены (не в файлах)
+### Tokens (not in files)
 
-Порядок для каждого инстанса:
+Resolution order per instance:
 
-1. `OUTLINE_API_TOKEN_<NAME>` — рекомендуется для multi-instance  
+1. `OUTLINE_API_TOKEN_<NAME>` — recommended for multi-instance  
    (`work` → `OUTLINE_API_TOKEN_WORK`, `personal` → `OUTLINE_API_TOKEN_PERSONAL`)
-2. `OUTLINE_API_TOKEN` — только для **default** инстанса (compat)
+2. `OUTLINE_API_TOKEN` — **default** instance only (compat)
 3. `instances.<name>.apiToken` / top-level `apiToken` — legacy disk fallback
 
 ```bash
@@ -68,9 +68,9 @@ export OUTLINE_API_TOKEN_PERSONAL="ol_api_..."
 export OUTLINE_API_TOKEN="$OUTLINE_API_TOKEN_WORK"
 ```
 
-### Выбор инстанса
+### Picking an instance
 
-Доступен на **всех** скриптах (`--instance` / `-i`):
+Available on **every** script (`--instance` / `-i`):
 
 ```bash
 bun scripts/list-collections.js --instance personal
@@ -79,61 +79,61 @@ bun scripts/tree.js --collection <id> --instance work --json
 bun scripts/test-connection.js --all
 ```
 
-Порядок: `--instance`/`-i` → env `OUTLINE_INSTANCE` → `config.defaultInstance`.
+Order: `--instance`/`-i` → env `OUTLINE_INSTANCE` → `config.defaultInstance`.
 
-> ⚠️ **ЗАГЛУШКИ.** `your-outline.example.com` / `REPLACE_WITH_*` — не реальные домены. Перед публикацией URL в чат — снимай origin через `bun scripts/test-connection.js --instance <name>`, не из SKILL.md.
+> ⚠️ **PLACEHOLDERS.** `your-outline.example.com` / `REPLACE_WITH_*` are not real hosts. Before publishing a URL in chat, resolve the origin with `bun scripts/test-connection.js --instance <name>` — not from SKILL.md.
 
 ## 🔧 Quick Commands
 
-### Поиск документов
+### Search documents
 ```bash
 bun scripts/search.js --query "deployment"
 bun scripts/search.js --query "api" --collection <id> --date-filter month
 bun scripts/search.js --query "bug" --limit 10 --json
 ```
 
-### Чтение документа
+### Read a document
 
-`--id` принимает **UUID или URL-slug** (например, `b9fqMIBlh9` из ссылки `/doc/...-b9fqMIBlh9`). Outline API сам распознаёт формат, отдельный fallback не нужен.
+`--id` accepts a **UUID or URL slug** (e.g. `b9fqMIBlh9` from `/doc/...-b9fqMIBlh9`). The Outline API recognizes both; no extra fallback is needed.
 
 ```bash
-# По UUID
+# By UUID
 bun scripts/read.js --id 21641e94-dbdc-4aa9-acef-84349f9b9fc1
-# По URL-slug (напрямую, без предварительного search)
+# By URL slug (directly, no prior search)
 bun scripts/read.js --id b9fqMIBlh9
-# JSON-вывод
+# JSON output
 bun scripts/read.js --id b9fqMIBlh9 --json
-# Path: Collection / Parent / Doc (отключить: --no-breadcrumb)
+# Path: Collection / Parent / Doc (disable: --no-breadcrumb)
 ```
 
-#### Экономия контекста: выбор режима чтения
+#### Saving context: which read mode to use
 
-- Документ небольшой → обычный вывод в stdout.
-- Большой документ, который потом будет читать file-reader агента → `--output-file <абсолютный-путь-в-workspace>`: markdown сохраняется в доступный агенту `.md` файл, без дублирования тела в stdout.
-- Нужный диапазон строк уже известен → `--lines`: вернёт только его, с абсолютными номерами строк.
+- Small document → print to stdout.
+- Large document that an agent will then read with a file reader → `--output-file <absolute-path-in-workspace>`: markdown is written to an agent-accessible `.md` file and the body is not duplicated on stdout.
+- Needed line range is already known → `--lines`: returns only that range, with absolute line numbers.
 
-**Выборка по строкам** (1-based, включительно):
+**Line selection** (1-based, inclusive):
 ```bash
-bun scripts/read.js --id <doc-id> --lines 10-20     # диапазон
-bun scripts/read.js --id <doc-id> --lines 100-      # от строки 100 до конца
-bun scripts/read.js --id <doc-id> --lines 10        # одна строка
-bun scripts/read.js --id <doc-id> --from-line 10 --to-line 20   # то же отдельными флагами
-bun scripts/read.js --id <doc-id> --line-numbers    # нумеровать весь вывод
+bun scripts/read.js --id <doc-id> --lines 10-20     # range
+bun scripts/read.js --id <doc-id> --lines 100-      # from line 100 to EOF
+bun scripts/read.js --id <doc-id> --lines 10        # single line
+bun scripts/read.js --id <doc-id> --from-line 10 --to-line 20   # same, as separate flags
+bun scripts/read.js --id <doc-id> --line-numbers    # number the full output
 ```
-Номера строк в выводе — всегда абсолютные (номера строк документа), по ним легко делать следующие `--lines`-запросы. Ошибочный диапазон (не числом, до начала, за EOF) → `exit 1` с сообщением, а не тихий вывод всего документа. В `--json`-режиме при выборке добавляется поле `selectedLines`, а `data.text` содержит только выбранный диапазон.
+Line numbers in the output are always absolute (document line numbers), so follow-up `--lines` requests are easy. A bad range (not a number, before the start, past EOF) → `exit 1` with a message, not a silent dump of the whole document. In `--json` mode a selection adds `selectedLines`, and `data.text` contains only the selected range.
 
-**Чтение в файл** («как с локальным .md»):
+**Read to a file** (treat it like a local `.md`):
 ```bash
-# Рекомендуется для агента: абсолютный путь внутри его workspace
+# Preferred for agents: absolute path inside the workspace
 bun scripts/read.js --id <doc-id> \
   --output-file /absolute/path/in/workspace/my-doc.md
-# Выборка строк + файл
+# Line selection + file
 bun scripts/read.js --id <doc-id> --lines 100-150 \
   --output-file /absolute/path/in/workspace/section.md
 ```
-Получаешь реальный `.md` файл: его можно читать построчно, `grep`-ать и передавать другим инструментам. Тело документа при этом в stdout не дублируется — только метаданные и путь к файлу.
+You get a real `.md` file: read it line by line, `grep` it, pass it to other tools. The document body is not also printed on stdout — only metadata and the file path.
 
-> ⚠️ Для последующего чтения агентом передавай `--output-file` с **абсолютным путём внутри его workspace**; родительская директория должна уже существовать.
+> ⚠️ For a later agent read, pass `--output-file` with an **absolute path inside the workspace**; the parent directory must already exist.
 
 ### Passing a markdown body
 
@@ -167,7 +167,7 @@ EOF
 
 `--find` with backticks is the same trap: write the fragment to a file and pass `--find-file`.
 
-### Создание документа
+### Create a document
 
 Pass the body through **exactly one** source (priority `--file` > `--text` > stdin):
 
@@ -186,21 +186,21 @@ bun scripts/create.js --title "Quick Note" --text "# Note\n\nContent" --publish
 bun scripts/create.js --title "From template" --template-id <uuid> --collection <id> --publish
 ```
 
-**Строгие правила скрипта** (важно):
+**Script rules** (important):
 
-- `--title` обязателен (или достаточно `--template-id`, если title возьмёт template) — иначе `exit 1`.
-- Любой неизвестный флаг (`--input`, `--path`, опечатка) → `exit 1` с явным сообщением. Скрипт **не тихой** для незнакомых опций.
-- Если контент нигде не задан (`--file` / `--text` / stdin — всё пустое) → `exit 1` с подсказкой. Защита от «забыл передать тело» и silent empty-документов.
-- `--file <path>` проверяет существование файла до запроса к API (быстрый fail с понятным сообщением).
-- Приоритет при нескольких источниках: `--file > --text > stdin`. Пустой `--text=""` или пустой stdin **не считаются** источником, чтобы `--text` не съел `--file`.
-- `--collection <uuid>` и `--parent <uuid>` опциональны. `--publish` публикует; без него — draft.
+- `--title` is required (or `--template-id` is enough if the template supplies the title) — otherwise `exit 1`.
+- Any unknown flag (`--input`, `--path`, a typo) → `exit 1` with an explicit message. The script does **not** silently ignore unknown options.
+- If no body is provided (`--file` / `--text` / stdin all empty) → `exit 1` with a hint. Guards against forgotten bodies and silent empty documents.
+- `--file <path>` checks that the file exists before calling the API (fast fail with a clear message).
+- Source priority: `--file > --text > stdin`. Empty `--text=""` or empty stdin **do not count** as a source, so `--text` cannot swallow `--file`.
+- `--collection <uuid>` and `--parent <uuid>` are optional. `--publish` publishes; without it the doc is a draft.
 
 ```bash
-# Полная справка
+# Full help
 bun scripts/create.js --help
 ```
 
-### Обновление документа
+### Update a document
 
 Body source priority: `--text-file` > `--text` > stdin. `update.js` takes `--text-file`, not `--file`.
 
@@ -230,7 +230,7 @@ bun scripts/update.js --id <id> --mode patch \
 # Without --find, a text update requires an explicit --mode.
 ```
 
-### Шаблоны (templates)
+### Templates
 ```bash
 bun scripts/templates.js
 bun scripts/templates.js --collection <id>
@@ -238,131 +238,131 @@ bun scripts/templates.js --id <template-uuid>
 bun scripts/templates.js --json
 ```
 
-### Список документов
+### List documents
 ```bash
-# Все документы в коллекции
+# All documents in a collection
 bun scripts/list.js --collection <id>
 
-# Прямые дети документа (sub-issues / sub-pages)
+# Direct children of a document (sub-issues / sub-pages)
 bun scripts/list.js --parent <id>
 
-# JSON-вывод
+# JSON output
 bun scripts/list.js --parent <id> --json
 ```
 
-### Список коллекций
+### List collections
 ```bash
 bun scripts/list-collections.js
 bun scripts/list-collections.js --json
 ```
 
-### Дерево документов
+### Document tree
 ```bash
 bun scripts/tree.js --collection <id>
 bun scripts/tree.js --collection <id> --json
 ```
 
-### Вложения (attachments)
+### Attachments
 
-Outline использует **two-phase upload**:
-1. `attachments.create` с `name` / `contentType` / `size` / optional `documentId` (без base64) → `{ attachment, uploadUrl, form }`
-2. multipart POST файла на `uploadUrl` (часто relative `/api/files.create` или signed S3 URL) с полями `form` + `file`
+Outline uses a **two-phase upload**:
+1. `attachments.create` with `name` / `contentType` / `size` / optional `documentId` (no base64) → `{ attachment, uploadUrl, form }`
+2. multipart POST of the file to `uploadUrl` (often a relative `/api/files.create` or a signed S3 URL) with the `form` fields + `file`
 
-`attachments.js --action create` делает оба шага. В stdout печатает **ID**, **Path** (`/api/attachments.redirect?id=...`) и **MD** (`![name](/api/attachments.redirect?id=...)`) — вставляй MD в документ.
+`attachments.js --action create` does both steps. Stdout prints **ID**, **Path** (`/api/attachments.redirect?id=...`), and **MD** (`![name](/api/attachments.redirect?id=...)`) — paste the MD into the document.
 
 ```bash
-# Список вложений документа
+# Attachments on a document
 bun scripts/attachments.js --action list --document-id <id>
 
-# Глобальный пул вложений
+# Global attachment pool
 bun scripts/attachments.js --action list
 
-# Загрузить файл (content-type угадывается из расширения: jpg/png/webp/gif/pdf/md/...)
+# Upload a file (content-type guessed from extension: jpg/png/webp/gif/pdf/md/...)
 bun scripts/attachments.js --action create \
   --file ./diagram.png \
   --document-id <doc-id>
 
-# Явные name + content-type
+# Explicit name + content-type
 bun scripts/attachments.js --action create \
   --file ./handoff.md \
   --name handoff.md \
   --content-type text/markdown \
   --document-id <doc-id>
 
-# Получить URL для скачивания
+# Download URL
 bun scripts/attachments.js --action redirect --attachment-id <id>
 
-# Удалить вложение
+# Delete an attachment
 bun scripts/attachments.js --action delete --attachment-id <id>
 ```
 
-### Создание / обновление коллекции
+### Create / update a collection
 ```bash
-bun scripts/create-collection.js --name "Design" --description "Дизайн и UI/UX"
+bun scripts/create-collection.js --name "Design" --description "Design and UI/UX"
 bun scripts/create-collection.js --name "Private" --private --json
 
-# Update existing collection
+# Update an existing collection
 bun scripts/update-collection.js --id <uuid> --name "New name"
 bun scripts/update-collection.js --id <uuid> --description "..." --color "#FF5C80"
 bun scripts/update-collection.js --id <uuid> --private
 bun scripts/update-collection.js --id <uuid> --public
 ```
 
-### История документа (ревизии)
+### Document history (revisions)
 ```bash
-# Список всех ревизий документа
+# List all revisions of a document
 bun scripts/revisions.js --id <document-id>
 
-# Показать содержимое конкретной ревизии (1 = самая новая)
+# Show a specific revision (1 = newest)
 bun scripts/revisions.js --id <document-id> --rev 1
 
-# Показать ревизию по индексу (6 = шестая с конца)
+# Show a revision by index (6 = sixth from the end)
 bun scripts/revisions.js --id <document-id> --rev 6
 
-# Показать ревизию по UUID
+# Show a revision by UUID
 bun scripts/revisions.js --id <document-id> --rev <revision-uuid>
 
-# JSON вывод
+# JSON output
 bun scripts/revisions.js --id <document-id> --json
 ```
 
-### Удаление
+### Delete
 ```bash
-bun scripts/delete.js --id <id>               # В корзину
-bun scripts/delete.js --id <id> --permanent   # Навсегда
+bun scripts/delete.js --id <id>               # Trash
+bun scripts/delete.js --id <id> --permanent   # Permanent
 ```
 
-### Архивация
+### Archive
 ```bash
-bun scripts/archive.js --id <id>              # Архивировать
-bun scripts/archive.js --id <id> --restore    # Восстановить
+bun scripts/archive.js --id <id>              # Archive
+bun scripts/archive.js --id <id> --restore    # Restore
 ```
 
-### Дублирование
+### Duplicate
 ```bash
 bun scripts/duplicate.js --id <id> --title "Copy of Doc"
-bun scripts/duplicate.js --id <id> --recursive --publish  # С child документами
+bun scripts/duplicate.js --id <id> --recursive --publish  # Including child documents
 ```
 
-### Перемещение (смена parent и/или коллекции)
+### Move (change parent and/or collection)
 ```bash
-# Сменить только parent внутри коллекции (предпочтительный способ)
+# Change parent only, same collection (preferred)
 bun scripts/move.js --id <id> --parent <parent-id>
-# Сменить parent + перенести в другую коллекцию
+# Change parent + move to another collection
 bun scripts/move.js --id <id> --collection <new-coll-id> --parent <new-parent-id>
-# Вынести документ на верхний уровень коллекции
+# Promote the document to the collection root
 bun scripts/move.js --id <id> --parent null
 
-# ⚠️ Outline API молча игнорирует неизвестные поля POST-тела (например,
-# опечатку `parentDocument` вместо `parentDocumentId`) и возвращает ok:true
-# без фактического изменения. Скрипт делает post-check через documents.info,
-# а с --expect-parent строго валидирует результат и падает с exit code 2,
-# если parentDocumentId на сервере не совпал с ожиданием.
+# ⚠️ Outline API silently ignores unknown POST-body fields (e.g. a typo
+# `parentDocument` instead of `parentDocumentId`) and returns ok:true
+# with no actual change. The script post-checks via documents.info,
+# and with --expect-parent it validates the result and exits 2
+# if parentDocumentId on the server does not match the expectation.
 bun scripts/move.js --id <id> --parent <parent-id> --expect-parent <parent-id>
 ```
 
-> Имя параметра — `parentDocumentId` (НЕ `parentDocument`, НЕ `parentId`).
-> Если нужно только сменить parent без смены коллекции — `documents.update` тоже принимает `parentDocumentId` (см. `references/api-reference.md`).
+> The field name is `parentDocumentId` (NOT `parentDocument`, NOT `parentId`).
+> To change only the parent without changing collection, `documents.update` also accepts `parentDocumentId` (see `references/api-reference.md`).
 
 ### Export/Import
 ```bash
@@ -375,20 +375,20 @@ bun scripts/import.js --file doc.md --title "Imported" --publish
 cat document.md | bun scripts/import.js --title "From Stdin" --collection <id>
 ```
 
-## 💡 Типичные сценарии
+## 💡 Typical workflows
 
-### 1. Поиск и обновление документа
+### 1. Search and update a document
 
 ```bash
-# Если известен URL-slug (хвост ссылки /doc/...-XXXXX) — читаем сразу,
-# без search:
+# If you already have the URL slug (the /doc/...-XXXXX tail) — read it
+# directly, no search:
 bun scripts/read.js --id b9fqMIBlh9
 
-# Иначе ищем по тексту, забираем ID/slug из результатов и читаем:
+# Otherwise search, take the ID/slug from the results, then read:
 bun scripts/search.js --query "deployment guide"
 bun scripts/read.js --id <id-or-slug>
 
-# Добавить секцию
+# Append a section
 echo "\n\n## Troubleshooting\n\n..." | bun scripts/update.js --id <id> --mode append
 
 # Surgical replace: read first, then --mode patch --find / --find-file.
@@ -396,15 +396,15 @@ echo "\n\n## Troubleshooting\n\n..." | bun scripts/update.js --id <id> --mode ap
 # Do not use --mode replace unless you are sending the full new document body.
 ```
 
-### 2. Создание технической документации
+### 2. Create technical documentation
 ```bash
-# Создать главную страницу
+# Create the parent page
 echo "# API Documentation\n\nOverview..." | \
   bun scripts/create.js --title "API Docs" --collection <id> --publish
 
-# Получить ID родителя из вывода
+# Take the parent ID from the output
 
-# Создать child документы
+# Create child documents
 echo "# Authentication\n\n..." | \
   bun scripts/create.js --title "Authentication" --parent <parent-id> --publish
 
@@ -412,18 +412,18 @@ echo "# Endpoints\n\n..." | \
   bun scripts/create.js --title "Endpoints" --parent <parent-id> --publish
 ```
 
-### 3. Backup коллекции
+### 3. Back up a collection
 ```bash
-# Экспортировать все документы
+# Export every document
 for doc_id in $(bun scripts/tree.js --collection <id> --json | jq -r '.[].id'); do
   bun scripts/export.js --id "$doc_id" --output-file "backup/$doc_id.md"
 done
 ```
 
-### 4. Получить sub-issues / дочерние страницы
+### 4. Get sub-issues / child pages
 ```bash
-# `tree.js` показывает только первый уровень вложенности. Для глубокого
-# обхода используй `list.js --parent=<id>` рекурсивно:
+# `tree.js` only shows the first nesting level. For a deep walk,
+# recurse with `list.js --parent=<id>`:
 PARENT_ID="<root-doc-id>"
 bun scripts/list.js --parent "$PARENT_ID" --json | jq -r '.[].id' | while read -r child; do
   echo "Child: $child"
@@ -431,90 +431,90 @@ bun scripts/list.js --parent "$PARENT_ID" --json | jq -r '.[].id' | while read -
 done
 ```
 
-### 5. Прикрепить handoff markdown к issue
+### 5. Attach a handoff markdown to an issue
 ```bash
-# Загрузить файл
+# Upload the file
 bun scripts/attachments.js --action create \
   --file ./docs/agents/handoff/2026-06-XX.md \
   --name "phase-handoff.md" \
   --content-type text/markdown
 
-# Получить ID из вывода, затем:
-# 1. Скопировать redirect URL из ответа create
-# 2. Добавить ссылку в issue через update.js --mode append
+# Take the ID from the output, then:
+# 1. Copy the redirect URL from the create response
+# 2. Add the link to the issue with update.js --mode append
 ```
 
-### 6. Переместить документ к новому родителю
+### 6. Move a document to a new parent
 ```bash
-# Проверить текущего родителя
+# Check the current parent
 bun scripts/read.js --id <doc-id> --json | jq '.data.parentDocumentId'
 
-# Сменить parent (с post-check, чтобы поймать silent no-op от Outline API)
+# Change parent (post-check catches a silent no-op from Outline API)
 bun scripts/move.js --id <doc-id> --parent <new-parent-id> --expect-parent <new-parent-id>
 
-# Если exit code 2 — Outline проигнорировал поле; проверь имя (`parentDocumentId`)
-# и не путаешь ли ты endpoint: для смены parent внутри коллекции годятся и
-# documents.update (с parentDocumentId), и documents.move.
+# Exit code 2 — Outline ignored the field; check the name (`parentDocumentId`)
+# and that you are not mixing endpoints: to change parent inside a collection,
+# both documents.update (with parentDocumentId) and documents.move work.
 ```
 
-## 📚 Документация
+## 📚 Documentation
 
-- **[references/api-reference.md](references/api-reference.md)** — Детали Outline API
-- **[references/examples.md](references/examples.md)** — Workflow примеры
+- **[references/api-reference.md](references/api-reference.md)** — Outline API details
+- **[references/examples.md](references/examples.md)** — Workflow examples
 
 ## 🔍 Debugging
 
-Все скрипты поддерживают `--json` для программного использования:
+Every script supports `--json` for programmatic use:
 ```bash
 result=$(bun scripts/search.js --query "test" --json)
 echo "$result" | jq '.data[0].document.title'
 ```
 
-Проверить, что auth и baseUrl настроены правильно:
+Verify auth and baseUrl:
 ```bash
 bun scripts/test-connection.js
 ```
 
-> ⚠️ **Перед публикацией URL в чат / документ / issue** — снимать реальный домен через `test-connection.js`. Скрипт вернёт origin вида `https://outline.<your-domain>` и подтвердит подключение. **Никогда** не публиковать URL из SKILL.md / config.example.json / README.md / references/*.md — там placeholder `your-outline.example.com` или `REPLACE_WITH_YOUR_OUTLINE_DOMAIN`.
+> ⚠️ **Before publishing a URL in chat / a document / an issue** — resolve the real origin with `test-connection.js`. The script returns an origin like `https://outline.<your-domain>` and confirms the connection. **Never** publish a URL from SKILL.md / config.example.json / README.md / references/*.md — those use the placeholder `your-outline.example.com` or `REPLACE_WITH_YOUR_OUTLINE_DOMAIN`.
 
-## 🛠️ Разработка
+## 🛠️ Development
 
-**Структура skill:**
+**Skill layout:**
 ```
 skills/outline/
-├── SKILL.md                 # Эта документация
-├── README.md                # GitHub-ориентированный обзор
+├── SKILL.md                 # This documentation
+├── README.md                # GitHub-oriented overview
 ├── LICENSE                  # MIT
-├── config.example.json      # Шаблон для config.json
-├── config.json              # Локальная конфигурация (в .gitignore)
+├── config.example.json      # Template for config.json
+├── config.json              # Local config (gitignored)
 ├── package.json             # Bun dependencies
 ├── scripts/
-│   ├── search.js            # Поиск
-│   ├── read.js              # Чтение
-│   ├── create.js            # Создание документа
-│   ├── create-collection.js # Создание коллекции
-│   ├── update.js            # Обновление
-│   ├── delete.js            # Удаление
-│   ├── archive.js           # Архивация
-│   ├── duplicate.js         # Дублирование
-│   ├── move.js              # Перемещение (parent / коллекция) + post-check
-│   ├── export.js            # Экспорт markdown
-│   ├── import.js            # Импорт markdown
-│   ├── revisions.js         # История документа (ревизии)
-│   ├── tree.js              # Дерево коллекции (depth 1)
-│   ├── list.js              # Документы коллекции или дети parent
-│   ├── list-collections.js  # Список коллекций
-│   ├── attachments.js       # Вложения: list / create / delete / redirect
-│   ├── test-connection.js   # Проверка auth и baseUrl
+│   ├── search.js            # Search
+│   ├── read.js              # Read
+│   ├── create.js            # Create a document
+│   ├── create-collection.js # Create a collection
+│   ├── update.js            # Update
+│   ├── delete.js            # Delete
+│   ├── archive.js           # Archive
+│   ├── duplicate.js         # Duplicate
+│   ├── move.js              # Move (parent / collection) + post-check
+│   ├── export.js            # Export markdown
+│   ├── import.js            # Import markdown
+│   ├── revisions.js         # Document history (revisions)
+│   ├── tree.js              # Collection tree (depth 1)
+│   ├── list.js              # Collection documents or children of a parent
+│   ├── list-collections.js  # List collections
+│   ├── attachments.js       # Attachments: list / create / delete / redirect
+│   ├── test-connection.js   # Check auth and baseUrl
 │   └── lib/
-│       └── outline-api.js   # Core API wrapper (читает OUTLINE_API_TOKEN)
+│       └── outline-api.js   # Core API wrapper (reads OUTLINE_API_TOKEN)
 └── references/
-    ├── api-reference.md     # API детали
-    └── examples.md          # Workflow примеры
+    ├── api-reference.md     # API details
+    └── examples.md          # Workflow examples
 ```
 
-**API wrapper:** `scripts/lib/outline-api.js` — единая точка для всех запросов к Outline API.
+**API wrapper:** `scripts/lib/outline-api.js` is the single entry point for all Outline API requests.
 
-**Note про namespace:** в текущей версии Outline attachments живут под namespace `attachments.*` (не `documents.attachments.*`). `attachments.js` уже учитывает это.
+**Namespace note:** in the current Outline version attachments live under `attachments.*` (not `documents.attachments.*`). `attachments.js` already accounts for this.
 
-**Note про depth в `tree.js`:** `collections.documents` отдаёт только первый уровень вложенности. Для sub-pages используйте `list.js --parent=<id>` (как в сценарии 4).
+**Depth note in `tree.js`:** `collections.documents` only returns the first nesting level. For sub-pages use `list.js --parent=<id>` (as in workflow 4).

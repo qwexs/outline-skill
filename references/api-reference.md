@@ -1,17 +1,17 @@
 # Outline API Reference
 
-API reference для Outline Wiki (your-outline.example.com).
+API reference for Outline Wiki (your-outline.example.com).
 
-## Общие принципы
+## General rules
 
-- **Все запросы — POST** (даже чтение данных)
+- **Every request is POST** (including reads)
 - **Base URL:** `https://your-outline.example.com/api/`
 - **Auth:** `Authorization: Bearer <API_TOKEN>`
 - **Content-Type:** `application/json`
-- **Ответ:** `{ ok: true, data: {...}, pagination: {...}, policies: [...] }`
-- **Ошибка:** `{ ok: false, error: "error_type", message: "описание" }`
+- **Success:** `{ ok: true, data: {...}, pagination: {...}, policies: [...] }`
+- **Error:** `{ ok: false, error: "error_type", message: "description" }`
 
-## Аутентификация
+## Authentication
 
 ```bash
 curl -X POST https://your-outline.example.com/api/auth.info \
@@ -24,7 +24,7 @@ curl -X POST https://your-outline.example.com/api/auth.info \
 ### Documents
 
 #### `documents.search`
-Full-text поиск по документам.
+Full-text search over documents.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.search \
@@ -39,17 +39,17 @@ curl -X POST https://your-outline.example.com/api/documents.search \
   }'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `query` | string | Поисковый запрос (обязательный) |
-| `collectionId` | string | Фильтр по коллекции |
-| `userId` | string | Фильтр по автору |
+| `query` | string | Search query (required) |
+| `collectionId` | string | Filter by collection |
+| `userId` | string | Filter by author |
 | `dateFilter` | string | `day`, `week`, `month`, `year` |
-| `limit` | number | Макс. результатов (default 25) |
-| `offset` | number | Смещение для пагинации |
+| `limit` | number | Max results (default 25) |
+| `offset` | number | Pagination offset |
 
-**Ответ:**
+**Response:**
 ```json
 {
   "ok": true,
@@ -77,7 +77,7 @@ curl -X POST https://your-outline.example.com/api/documents.search \
 ```
 
 #### `documents.info`
-Получение документа по ID.
+Fetch a document by ID.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.info \
@@ -86,16 +86,16 @@ curl -X POST https://your-outline.example.com/api/documents.info \
   -d '{"id": "document-uuid"}'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `id` | string | UUID документа |
-| `shareId` | string | Публичный share ID (альтернатива id) |
+| `id` | string | Document UUID |
+| `shareId` | string | Public share ID (alternative to id) |
 
-**Ответ:** `{ ok: true, data: { id, title, text, emoji, collectionId, parentDocumentId, ... } }`
+**Response:** `{ ok: true, data: { id, title, text, emoji, collectionId, parentDocumentId, ... } }`
 
 #### `documents.create`
-Создание нового документа.
+Create a new document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.create \
@@ -110,19 +110,19 @@ curl -X POST https://your-outline.example.com/api/documents.create \
   }'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `title` | string | Заголовок (обязательный, если нет templateId) |
-| `text` | string | Markdown контент |
-| `collectionId` | string | ID коллекции |
-| `parentDocumentId` | string | ID родительского документа |
-| `templateId` | string | UUID шаблона для prefill (`templates.list`) |
-| `publish` | boolean | Опубликовать сразу |
-| `template` | boolean | Создать как шаблон |
+| `title` | string | Title (required unless templateId is set) |
+| `text` | string | Markdown body |
+| `collectionId` | string | Collection ID |
+| `parentDocumentId` | string | Parent document ID |
+| `templateId` | string | Template UUID to prefill (`templates.list`) |
+| `publish` | boolean | Publish immediately |
+| `template` | boolean | Create as a template |
 
 #### `documents.update`
-Обновление документа.
+Update a document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.update \
@@ -150,19 +150,19 @@ curl -X POST https://your-outline.example.com/api/documents.update \
   }'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `id` | string | UUID документа (обязательный) |
-| `title` | string | Новый заголовок |
-| `text` | string | Новый контент / replacement для patch |
+| `id` | string | Document UUID (required) |
+| `title` | string | New title |
+| `text` | string | New body / replacement for patch |
 | `editMode` | string | `replace` \| `append` \| `prepend` \| `patch` |
-| `findText` | string | Точная markdown-подстрока для `editMode=patch` (обязательна) |
-| `append` | boolean | **Deprecated** — используй `editMode: "append"` |
-| `parentDocumentId` | string \| null | Сменить родителя. UUID или `null` (корень коллекции) |
-| `done` | boolean | Завершить editing session |
+| `findText` | string | Exact markdown substring for `editMode=patch` (required) |
+| `append` | boolean | **Deprecated** — use `editMode: "append"` |
+| `parentDocumentId` | string \| null | Change parent. UUID or `null` (collection root) |
+| `done` | boolean | Finish the editing session |
 
-**Важно:** для точечных правок агентом предпочитай `editMode: "patch"` + `findText` — сохраняет rich formatting вне матча. `append: true` ещё работает (трансформируется в `editMode=append`), но deprecated.
+**Important:** for surgical agent edits prefer `editMode: "patch"` + `findText` — it keeps rich formatting outside the match. `append: true` still works (mapped to `editMode=append`) but is deprecated.
 
 #### `collections.update`
 
@@ -179,7 +179,7 @@ curl -X POST https://your-outline.example.com/api/collections.update \
   }'
 ```
 
-**Параметры:** `id` (required), `name`, `description`, `color`, `icon`, `permission` (`read` / empty for private).
+**Parameters:** `id` (required), `name`, `description`, `color`, `icon`, `permission` (`read` / empty for private).
 
 CLI: `bun scripts/update-collection.js --id <uuid> --name "..."`
 
@@ -198,7 +198,7 @@ curl -X POST https://your-outline.example.com/api/templates.info \
 ```
 
 #### `documents.delete`
-Удаление документа.
+Delete a document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.delete \
@@ -207,14 +207,14 @@ curl -X POST https://your-outline.example.com/api/documents.delete \
   -d '{"id": "document-uuid", "permanent": false}'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `id` | string | UUID документа |
-| `permanent` | boolean | Удалить навсегда (default: false → в корзину) |
+| `id` | string | Document UUID |
+| `permanent` | boolean | Delete forever (default: false → trash) |
 
 #### `documents.archive`
-Архивация документа.
+Archive a document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.archive \
@@ -224,7 +224,7 @@ curl -X POST https://your-outline.example.com/api/documents.archive \
 ```
 
 #### `documents.unarchive`
-Восстановление из архива.
+Restore from archive.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.unarchive \
@@ -234,7 +234,7 @@ curl -X POST https://your-outline.example.com/api/documents.unarchive \
 ```
 
 #### `documents.move`
-Перемещение документа в другую коллекцию и/или смена родителя внутри коллекции.
+Move a document to another collection and/or change its parent inside a collection.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.move \
@@ -247,21 +247,21 @@ curl -X POST https://your-outline.example.com/api/documents.move \
   }'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `id` | string | UUID документа (обязательный) |
-| `collectionId` | string | ID целевой коллекции (обязательный, если переносим в другую коллекцию) |
-| `parentDocumentId` | string \| null | ID нового родителя внутри коллекции, или `null` чтобы поместить на верхний уровень |
+| `id` | string | Document UUID (required) |
+| `collectionId` | string | Target collection ID (required when moving to another collection) |
+| `parentDocumentId` | string \| null | New parent inside the collection, or `null` to place at the collection root |
 
-**⚠️ Подводный камень.** Outline API **молча игнорирует неизвестные поля** в POST-теле и возвращает `ok: true` вместе с текущим (не изменённым) состоянием документа. Имена параметров фиксированные: `parentDocumentId` (НЕ `parentDocument`, НЕ `parentId`). Чтобы убедиться, что move реально сработал, делай post-check через `documents.info` и сравнивай `parentDocumentId` / `collectionId` с ожидаемыми.
+**⚠️ Gotcha.** Outline API **silently ignores unknown fields** in the POST body and returns `ok: true` together with the current (unchanged) document. Parameter names are fixed: `parentDocumentId` (NOT `parentDocument`, NOT `parentId`). To confirm a move actually happened, post-check via `documents.info` and compare `parentDocumentId` / `collectionId` with the expected values.
 
-**Когда что использовать:**
-- Меняешь только parent внутри одной коллекции → `documents.update` с `parentDocumentId` (дешевле, не требует `collectionId`).
-- Переносишь в другую коллекцию (и опционально ставишь parent) → `documents.move`.
+**When to use which:**
+- Changing only the parent inside one collection → `documents.update` with `parentDocumentId` (cheaper, no `collectionId` required).
+- Moving to another collection (and optionally setting a parent) → `documents.move`.
 
 #### `documents.duplicate`
-Дублирование документа.
+Duplicate a document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.duplicate \
@@ -275,17 +275,17 @@ curl -X POST https://your-outline.example.com/api/documents.duplicate \
   }'
 ```
 
-**Параметры:**
-| Поле | Тип | Описание |
+**Parameters:**
+| Field | Type | Description |
 |------|-----|----------|
-| `id` | string | UUID исходного документа |
-| `title` | string | Заголовок копии |
-| `publish` | boolean | Опубликовать копию |
-| `recursive` | boolean | Копировать child документы |
-| `collectionId` | string | Поместить в другую коллекцию |
+| `id` | string | Source document UUID |
+| `title` | string | Copy title |
+| `publish` | boolean | Publish the copy |
+| `recursive` | boolean | Also copy child documents |
+| `collectionId` | string | Place the copy in another collection |
 
 #### `documents.export`
-Экспорт документа.
+Export a document.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.export \
@@ -294,10 +294,10 @@ curl -X POST https://your-outline.example.com/api/documents.export \
   -d '{"id": "document-uuid"}'
 ```
 
-Возвращает markdown контент документа.
+Returns the document markdown.
 
 #### `documents.import`
-Импорт документа (multipart/form-data).
+Import a document (multipart/form-data).
 
 ```bash
 curl -X POST https://your-outline.example.com/api/documents.import \
@@ -307,18 +307,18 @@ curl -X POST https://your-outline.example.com/api/documents.import \
   -F "publish=true"
 ```
 
-**Параметры (form fields):**
-| Поле | Тип | Описание |
+**Parameters (form fields):**
+| Field | Type | Description |
 |------|-----|----------|
-| `file` | file | Markdown файл |
-| `collectionId` | string | ID коллекции |
-| `parentDocumentId` | string | ID родителя |
-| `publish` | boolean | Опубликовать |
+| `file` | file | Markdown file |
+| `collectionId` | string | Collection ID |
+| `parentDocumentId` | string | Parent ID |
+| `publish` | boolean | Publish |
 
 ### Collections
 
 #### `collections.list`
-Список коллекций.
+List collections.
 
 ```bash
 curl -X POST https://your-outline.example.com/api/collections.list \
@@ -327,7 +327,7 @@ curl -X POST https://your-outline.example.com/api/collections.list \
   -d '{}'
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "ok": true,
@@ -347,7 +347,7 @@ curl -X POST https://your-outline.example.com/api/collections.list \
 ```
 
 #### `collections.documents`
-Документы в коллекции (иерархия).
+Documents in a collection (hierarchy).
 
 ```bash
 curl -X POST https://your-outline.example.com/api/collections.documents \
@@ -356,7 +356,7 @@ curl -X POST https://your-outline.example.com/api/collections.documents \
   -d '{"id": "collection-uuid"}'
 ```
 
-**Ответ:** Возвращает вложенную структуру документов:
+**Response:** Nested document structure:
 ```json
 {
   "ok": true,
@@ -378,9 +378,9 @@ curl -X POST https://your-outline.example.com/api/collections.documents \
 }
 ```
 
-## Пагинация
+## Pagination
 
-Endpoints со списками поддерживают пагинацию:
+List endpoints support pagination:
 ```json
 {
   "offset": 0,
@@ -388,19 +388,19 @@ Endpoints со списками поддерживают пагинацию:
 }
 ```
 
-Передавайте `offset` и `limit` в теле запроса. Ответ содержит `pagination` объект.
+Pass `offset` and `limit` in the request body. The response includes a `pagination` object.
 
-## Коды ошибок
+## Error codes
 
-| Код | Описание |
+| Code | Description |
 |-----|----------|
-| 401 | Неверный или отсутствующий API token |
-| 403 | Нет прав на операцию |
-| 404 | Документ/коллекция не найдены |
-| 400 | Неверные параметры запроса |
+| 401 | Invalid or missing API token |
+| 403 | No permission for the operation |
+| 404 | Document/collection not found |
+| 400 | Invalid request parameters |
 
-## Лимиты
+## Limits
 
-- Размер документа: до ~1MB markdown
-- Rate limiting: ~120 запросов/минуту (зависит от инстанса)
-- Поиск: максимум 100 результатов за запрос
+- Document size: up to ~1MB of markdown
+- Rate limiting: ~120 requests/minute (depends on the instance)
+- Search: at most 100 results per request

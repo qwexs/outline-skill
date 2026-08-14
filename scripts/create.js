@@ -170,7 +170,7 @@ try {
     }
 
     if (attachedLinks.length > 0) {
-      const attachText = '\n\n---\n\n**Вложения:**\n' + attachedLinks.map(l => `- ${l}`).join('\n');
+      const attachText = '\n\n---\n\n**Attachments:**\n' + attachedLinks.map(l => `- ${l}`).join('\n');
       await makeRequest('documents.update', {
         id: doc.id,
         text: attachText,

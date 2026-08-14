@@ -1,21 +1,21 @@
 # Outline Workflow Examples
 
-Практические примеры работы с Outline Wiki через skill scripts.
+Practical Outline Wiki workflows using the skill scripts.
 
-## Сценарий 1: Создание документации проекта
+## Scenario 1: Create project documentation
 
-**Задача:** Создать структуру документации для нового проекта.
+**Goal:** Scaffold documentation for a new project.
 
 ```bash
-# 1. Найти нужную коллекцию
+# 1. Find the target collection
 node scripts/list-collections.js
 
-# Допустим, коллекция "Engineering" имеет ID abc-123
+# Suppose the "Engineering" collection has ID abc-123
 
-# 2. Создать главную страницу проекта
+# 2. Create the project home page
 echo "# Project Radik
 
-Радик-портал — новый проект для...
+Radik is a new project for...
 
 ## Overview
 ...
@@ -26,12 +26,12 @@ echo "# Project Radik
   --collection abc-123 \
   --publish
 
-# Вывод:
+# Output:
 # ✅ Document created
 # ID: project-123
 # URL: https://your-outline.example.com/doc/project-123
 
-# 3. Создать child документы
+# 3. Create child documents
 echo "# Backend Architecture
 
 ## Tech Stack
@@ -52,11 +52,11 @@ echo "# Frontend Architecture
   --parent project-123 \
   --publish
 
-# 4. Проверить структуру
+# 4. Check the structure
 node scripts/tree.js --collection abc-123
 ```
 
-**Результат:**
+**Result:**
 ```
 📁 Project Radik
   📄 Backend
@@ -65,20 +65,20 @@ node scripts/tree.js --collection abc-123
 
 ---
 
-## Сценарий 2: Обновление документа (append mode)
+## Scenario 2: Update a document (append mode)
 
-**Задача:** Добавить troubleshooting секцию в существующий документ.
+**Goal:** Add a troubleshooting section to an existing document.
 
 ```bash
-# 1. Найти документ
+# 1. Find the document
 node scripts/search.js --query "deployment guide"
 
-# ID из результатов: deploy-456
+# ID from the results: deploy-456
 
-# 2. Прочитать текущий контент (опционально)
+# 2. Read the current content (optional)
 node scripts/read.js --id deploy-456
 
-# 3. Добавить новую секцию в конец
+# 3. Append a new section
 cat << 'EOF' | node scripts/update.js --id deploy-456 --mode append
 
 ## Troubleshooting
@@ -97,35 +97,35 @@ Check `.env` file:
 
 EOF
 
-# Вывод:
+# Output:
 # ✅ Document updated
 # Mode: append
 ```
 
 ---
 
-## Сценарий 3: Поиск и bulk patch
+## Scenario 3: Search and bulk patch
 
-**Задача:** Найти все документы с упоминанием старого API endpoint и точечно обновить их, не перезаписывая остальной документ.
+**Goal:** Find every document that mentions an old API endpoint and update it surgically, without overwriting the rest of the document.
 
 ```bash
-# 1. Поиск документов
+# 1. Search
 results=$(node scripts/search.js --query "api.old.com" --json)
 
-# 2. Извлечь IDs
+# 2. Extract IDs
 doc_ids=$(echo "$results" | jq -r '.data[].document.id')
 
-# 3. Для каждого документа прочитать, проверить, обновить
+# 3. For each document: read, check, update
 for id in $doc_ids; do
   echo "Processing $id..."
   
-  # Прочитать документ
+  # Read the document
   content=$(node scripts/read.js --id "$id" --json | jq -r '.data.text')
   
-  # Проверить есть ли старый URL
+  # Check whether the old URL is present
   if echo "$content" | grep -q "api.old.com"; then
-    # Точечно заменить. update.js проверит, что old URL встречается ровно один раз.
-    # Если в документе несколько вхождений, выбери более длинный уникальный --find.
+    # Surgical replace. update.js checks the old URL occurs exactly once.
+    # If the document has several matches, pick a longer unique --find.
     node scripts/update.js --id "$id" --mode patch \
       --find "api.old.com" \
       --text "api.new.com"
@@ -136,16 +136,16 @@ done
 
 ---
 
-## Сценарий 4: Export для backup
+## Scenario 4: Export for backup
 
-**Задача:** Экспортировать все документы коллекции для backup.
+**Goal:** Export every document in a collection for backup.
 
 ```bash
-# 1. Получить дерево коллекции
+# 1. Get the collection tree
 collection_id="abc-123"
 tree_json=$(node scripts/tree.js --collection "$collection_id" --json)
 
-# 2. Рекурсивно извлечь все document IDs
+# 2. Recursively extract all document IDs
 extract_ids() {
   echo "$1" | jq -r '
     .. | 
@@ -157,11 +157,11 @@ extract_ids() {
 
 doc_ids=$(extract_ids "$tree_json")
 
-# 3. Создать backup директорию
+# 3. Create a backup directory
 backup_dir="backup/$(date +%Y-%m-%d)"
 mkdir -p "$backup_dir"
 
-# 4. Экспортировать каждый документ
+# 4. Export each document
 for id in $doc_ids; do
   echo "Exporting $id..."
   node scripts/export.js \
@@ -174,12 +174,12 @@ echo "✅ Backup complete: $backup_dir"
 
 ---
 
-## Сценарий 5: Import batch documents
+## Scenario 5: Import a batch of documents
 
-**Задача:** Импортировать несколько markdown файлов как документы.
+**Goal:** Import several markdown files as documents.
 
 ```bash
-# Структура файлов:
+# File layout:
 # docs/
 #   intro.md
 #   setup.md
@@ -203,12 +203,12 @@ done
 
 ---
 
-## Сценарий 6: Duplicate и модифицировать
+## Scenario 6: Duplicate and fill in
 
-**Задача:** Создать копию документа-шаблона и заполнить данными.
+**Goal:** Copy a template document and fill it with data.
 
 ```bash
-# 1. Дублировать шаблон
+# 1. Duplicate the template
 template_id="template-789"
 result=$(node scripts/duplicate.js \
   --id "$template_id" \
@@ -217,7 +217,7 @@ result=$(node scripts/duplicate.js \
 
 new_id=$(echo "$result" | jq -r '.data.id')
 
-# 2. Обновить копию (заменить placeholder'ы)
+# 2. Update the copy (replace placeholders)
 cat << 'EOF' | node scripts/update.js --id "$new_id" --mode replace
 # Q1 2026 Report
 
@@ -238,12 +238,12 @@ EOF
 
 ---
 
-## Сценарий 7: Навигация по иерархии
+## Scenario 7: Navigate a hierarchy
 
-**Задача:** Найти документ в дереве коллекции.
+**Goal:** Find a document in a collection tree.
 
 ```bash
-# 1. Показать дерево
+# 1. Show the tree
 node scripts/tree.js --collection abc-123
 
 # Output:
@@ -254,10 +254,10 @@ node scripts/tree.js --collection abc-123
 #   📄 Authentication
 #   📄 Endpoints
 
-# 2. Искать по названию в дереве
+# 2. Search the tree by title
 tree_json=$(node scripts/tree.js --collection abc-123 --json)
 
-# Найти "Authentication" документ
+# Find the "Authentication" document
 auth_id=$(echo "$tree_json" | jq -r '
   .. | 
   objects | 
@@ -267,20 +267,20 @@ auth_id=$(echo "$tree_json" | jq -r '
 
 echo "Authentication doc ID: $auth_id"
 
-# 3. Прочитать документ
+# 3. Read the document
 node scripts/read.js --id "$auth_id"
 ```
 
 ---
 
-## Сценарий 8: Организация знаний
+## Scenario 8: Organize a knowledge base
 
-**Задача:** Создать knowledge base с FAQ секциями.
+**Goal:** Create a knowledge base with FAQ sections.
 
 ```bash
 collection_id="kb-001"
 
-# 1. Создать главную FAQ страницу
+# 1. Create the main FAQ page
 faq_id=$(echo "# FAQ
 
 Frequently asked questions." | \
@@ -290,7 +290,7 @@ Frequently asked questions." | \
     --publish \
     --json | jq -r '.data.id')
 
-# 2. Создать категории FAQ
+# 2. Create FAQ categories
 categories=("Account" "Billing" "Technical" "Product")
 
 for category in "${categories[@]}"; do
@@ -303,7 +303,7 @@ Questions about $category..." | \
       --publish
 done
 
-# 3. Проверить структуру
+# 3. Check the structure
 node scripts/tree.js --collection "$collection_id"
 ```
 
@@ -311,25 +311,25 @@ node scripts/tree.js --collection "$collection_id"
 
 ## Tips & Best Practices
 
-### 1. Используй append mode для логов/changelog
+### 1. Use append mode for logs / changelog
 ```bash
 echo "\n\n### 2026-02-10\n- Fixed bug X\n- Added feature Y" | \
   node scripts/update.js --id changelog-id --mode append
 ```
 
-### 2. Проверяй перед удалением
+### 2. Check before deleting
 ```bash
-# Сначала читай
+# Read first
 node scripts/read.js --id doc-to-delete
 
-# Затем архивируй (безопаснее чем delete)
+# Then archive (safer than delete)
 node scripts/archive.js --id doc-to-delete
 
-# Permanent delete только если уверен
+# Permanent delete only if you are sure
 node scripts/delete.js --id doc-to-delete --permanent
 ```
 
-### 3. JSON mode для автоматизации
+### 3. JSON mode for automation
 ```bash
 results=$(node scripts/search.js --query "api" --json)
 count=$(echo "$results" | jq '.data | length')
@@ -346,7 +346,7 @@ cat large-document.md | node scripts/create.js --title "Large Doc" --publish
 node scripts/update.js --id <id> --mode replace --text-file ./new-body.md
 ```
 
-### 5. Batch операции с error handling
+### 5. Batch operations with error handling
 ```bash
 for id in $doc_ids; do
   if node scripts/update.js --id "$id" --mode patch --find "old text" --text "new text" 2>/dev/null; then
