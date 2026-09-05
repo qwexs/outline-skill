@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { makeRequest, uploadAttachment, getDocumentBreadcrumb } from './lib/outline-api.js';
+import { printCleaned, unlinkTempSources } from './lib/temp-source.js';
 import { readFileSync, existsSync } from 'fs';
 
 const args = process.argv.slice(2);
@@ -25,6 +26,7 @@ const VALID_FLAGS = [
   '--template-id', '--templateId',
   '--publish',
   '--json',
+  '--keep',
   '--attach', '--attach-name',
 ];
 
@@ -42,6 +44,7 @@ if (has('--help')) {
   console.log(`  --parent <id>         Parent document UUID`);
   console.log(`  --publish             Publish immediately (otherwise draft)`);
   console.log(`  --json                Output raw API response as JSON`);
+  console.log(`  --keep                Keep --file/--attach paths under tmp/temp/.tmp (default: delete after success)`);
   console.log(`  --attach <file>        Attach a file to the document (repeatable)`);
   console.log(`  --attach-name <name>   Display name for the last --attach file`);
   console.log(``);
@@ -187,8 +190,13 @@ try {
     /* non-fatal */
   }
 
+  const cleaned = unlinkTempSources(
+    [filePath, ...attachFiles],
+    { keep: has('--keep') }
+  );
+
   if (has('--json')) {
-    console.log(JSON.stringify({ ...res, breadcrumb }, null, 2));
+    console.log(JSON.stringify({ ...res, breadcrumb, cleaned }, null, 2));
     process.exit(0);
   }
 
@@ -204,6 +212,7 @@ try {
     console.log(`Attachments: ${attachedLinks.length} file(s) attached`);
     attachedLinks.forEach(l => console.log(`  - ${l}`));
   }
+  printCleaned(cleaned);
 } catch (e) {
   console.error(`Error: ${e.message}`);
   process.exit(1);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { makeRequest } from './lib/outline-api.js';
+import { printCleaned, unlinkTempSources } from './lib/temp-source.js';
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 
@@ -8,7 +9,7 @@ const get = (flag) => { const i = args.indexOf(flag); return i !== -1 && i + 1 <
 const has = (flag) => args.includes(flag);
 
 if (has('--help') || !get('--title')) {
-  console.log(`Usage: import.js --title <text> [--instance <name>] [--file <path>] [--collection <id>] [--parent <id>] [--publish] [--json]
+  console.log(`Usage: import.js --title <text> [--instance <name>] [--file <path>] [--collection <id>] [--parent <id>] [--publish] [--json] [--keep]
 
 Imports a markdown file as a new document.
 
@@ -19,7 +20,8 @@ Options:
   --collection <id>    Target collection ID
   --parent <id>        Parent document ID
   --publish            Publish immediately
-  --json               Output JSON response`);
+  --json               Output JSON response
+  --keep               Keep --file paths under tmp/temp/.tmp (default: delete after success)`);
   process.exit(has('--help') ? 0 : 1);
 }
 
@@ -38,8 +40,12 @@ try {
   if (has('--publish')) body.publish = true;
 
   const res = await makeRequest('documents.create', body);
+  const cleaned = unlinkTempSources([filePath], { keep: has('--keep') });
 
-  if (has('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(0); }
+  if (has('--json')) {
+    console.log(JSON.stringify({ ...res, cleaned }, null, 2));
+    process.exit(0);
+  }
 
   const doc = res.data;
   console.log(`✅ Document imported\n`);
@@ -47,6 +53,7 @@ try {
   console.log(`Title: ${doc.title}`);
   if (filePath) console.log(`Source: ${basename(filePath)}`);
   if (doc.url) console.log(`URL: ${doc.url}`);
+  printCleaned(cleaned);
 } catch (e) {
   console.error(`❌ Error: ${e.message}`);
   process.exit(1);

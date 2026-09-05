@@ -19,6 +19,7 @@ import {
   resolveOutlineUrl,
   isOutlineHost,
 } from './lib/outline-api.js';
+import { printCleaned, unlinkTempSources } from './lib/temp-source.js';
 import { readFileSync, statSync } from 'fs';
 import { basename, extname } from 'path';
 
@@ -119,6 +120,7 @@ Options:
   --content-type <type>  MIME type (for create; auto-guessed from extension)
   --size <bytes>         File size in bytes (for create; auto-detected from --file)
   --json                 Output raw JSON
+  --keep                 Keep --file paths under tmp/temp/.tmp (default: delete after a successful upload)
 
 Content-type auto-guess: jpg/jpeg, png, webp, gif, pdf, md, txt, json, svg, csv, html
 
@@ -187,6 +189,9 @@ try {
 
     const redirectPath = a?.url || (a?.id ? `/api/attachments.redirect?id=${a.id}` : null);
     const markdown = redirectPath ? `![${name}](${redirectPath})` : null;
+    const cleaned = uploadUrl
+      ? unlinkTempSources([filePath], { keep: has('--keep') })
+      : [];
 
     if (has('--json')) {
       console.log(
@@ -196,6 +201,7 @@ try {
             uploadStatus,
             redirectPath,
             markdown,
+            cleaned,
           },
           null,
           2
@@ -214,6 +220,7 @@ try {
     if (a.url) console.log(`URL:  ${a.url}`);
     if (markdown) console.log(`MD:   ${markdown}`);
     if (uploadStatus) console.log(`Upload: HTTP ${uploadStatus.status} → ${uploadStatus.url}`);
+    printCleaned(cleaned);
   } else if (action === 'delete') {
     const id = get('--attachment-id');
     if (!id) {

@@ -1,6 +1,9 @@
 {
   "name": "outline-skill",
   "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
   "dependencies": {},
   "repository": {
     "type": "git",

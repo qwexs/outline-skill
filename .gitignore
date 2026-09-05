@@ -2,3 +2,4 @@ config.json
 config.json.bak
 *.bak
 node_modules/
+.test-*

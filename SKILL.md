@@ -167,6 +167,12 @@ EOF
 
 `--find` with backticks is the same trap: write the fragment to a file and pass `--find-file`.
 
+**Temp sources:** write the body under `tmp/` (also `temp/` or `.tmp/`, including `/tmp`). After a successful upload, `create.js` / `update.js` / `import.js` / `attachments.js` delete `--file` / `--text-file` / `--find-file` / `--attach` paths that live in one of those directories. Other paths are never deleted. `--keep` skips deletion. Failed commands leave the file in place for a retry.
+
+```bash
+bun scripts/create.js --title "Import" --file ./tmp/document.md --collection <id> --publish
+```
+
 ### Create a document
 
 Pass the body through **exactly one** source (priority `--file` > `--text` > stdin):
@@ -507,7 +513,8 @@ skills/outline/
 │   ├── attachments.js       # Attachments: list / create / delete / redirect
 │   ├── test-connection.js   # Check auth and baseUrl
 │   └── lib/
-│       └── outline-api.js   # Core API wrapper (reads OUTLINE_API_TOKEN)
+│       ├── outline-api.js   # Core API wrapper (reads OUTLINE_API_TOKEN)
+│       └── temp-source.js   # Unlink --file paths under tmp/ after success
 └── references/
     ├── api-reference.md     # API details
     └── examples.md          # Workflow examples

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { makeRequest, uploadAttachment, getDocumentBreadcrumb } from './lib/outline-api.js';
+import { printCleaned, unlinkTempSources } from './lib/temp-source.js';
 import { readFileSync, existsSync } from 'fs';
 
 const args = process.argv.slice(2);
@@ -45,7 +46,7 @@ function stripOneTrailingNewline(s) {
 }
 
 if (has('--help') || !get('--id')) {
-  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--text-file <path>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--find-file <path>] [--json] [--attach <file> ...] [--attach-name <name>]`);
+  console.log(`Usage: update.js --id <uuid> [--instance <name>] [--title <text>] [--text <markdown>] [--text-file <path>] [--mode <replace|append|prepend|patch>] [--find <markdown>] [--find-file <path>] [--json] [--keep] [--attach <file> ...] [--attach-name <name>]`);
   console.log(`Content source priority: --text-file > --text > stdin.`);
   console.log(``);
   console.log(`Modes:`);
@@ -60,6 +61,7 @@ if (has('--help') || !get('--id')) {
   console.log(`--find <md>         Required for --mode patch. Exact markdown substring from the doc.`);
   console.log(`                    Supplying --find/--find-file without --mode safely infers patch.`);
   console.log(`--find-file <path>  Same as --find, read from a file (one trailing newline stripped).`);
+  console.log(`--keep              Keep --text-file/--find-file/--attach paths under tmp/temp/.tmp (default: delete after success)`);
   console.log(`--attach <file>     Attach a file to the document. Can be repeated.`);
   console.log(`--attach-name <n>   Display name for the last --attach file (optional).`);
   process.exit(has('--help') ? 0 : 1);
@@ -227,8 +229,13 @@ try {
       /* non-fatal */
     }
 
+    const cleaned = unlinkTempSources(
+      [get('--text-file'), get('--find-file'), ...attachFiles],
+      { keep: has('--keep') }
+    );
+
     if (has('--json')) {
-      console.log(JSON.stringify({ ...updated, breadcrumb }, null, 2));
+      console.log(JSON.stringify({ ...updated, breadcrumb, cleaned }, null, 2));
       process.exit(0);
     }
 
@@ -242,6 +249,7 @@ try {
       console.log(`Attachments: ${attachedLinks.length} file(s) attached`);
       attachedLinks.forEach(l => console.log(`  - ${l}`));
     }
+    printCleaned(cleaned);
   } else {
     // No attachments — main flow
     if (text == null && !get('--title')) {
@@ -271,8 +279,13 @@ try {
       /* non-fatal */
     }
 
+    const cleaned = unlinkTempSources(
+      [get('--text-file'), get('--find-file')],
+      { keep: has('--keep') }
+    );
+
     if (has('--json')) {
-      console.log(JSON.stringify({ ...res, breadcrumb }, null, 2));
+      console.log(JSON.stringify({ ...res, breadcrumb, cleaned }, null, 2));
       process.exit(0);
     }
 
@@ -286,6 +299,7 @@ try {
     }
     if (breadcrumb?.path) console.log(`Path: ${breadcrumb.path}`);
     console.log(`URL: ${doc.url || 'N/A'}`);
+    printCleaned(cleaned);
   }
 } catch (e) {
   console.error(`Error: ${e.message}`);
